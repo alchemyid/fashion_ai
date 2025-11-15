@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>History - Fashion AI</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+<div class="dashboard-layout">
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <i class="fas fa-paint-brush"></i>
+                <h2>AI Generator</h2>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="dashboard.html" class="nav-item"><i class="fas fa-home"></i><span>Dashboard</span></a>
+            <a href="by_command.html" class="nav-item"><i class="fas fa-terminal"></i><span>By Command</span></a>
+            <a href="history.html" class="nav-item active"><i class="fas fa-history"></i><span>History</span></a>
+            <a href="settings.html" class="nav-item"><i class="fas fa-cog"></i><span>Settings</span></a>
+        </nav>
+        <div class="sidebar-footer">
+            <button onclick="logout()" class="btn-logout"><i class="fas fa-sign-out-alt"></i> Logout</button>
+        </div>
+    </aside>
+    <main class="content">
+        <h1><i class="fas fa-history"></i> Generation History</h1>
+        <p>Coming soon...</p>
+    </main>
+</div>
+<script>
+    if (!localStorage.getItem('logged_in')) window.location.href = 'index.html';
+    function logout() {
+        localStorage.removeItem('logged_in');
+        window.location.href = 'index.html';
+    }
+</script>
+</body>
+</html>

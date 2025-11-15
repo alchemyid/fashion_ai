@@ -1,0 +1,50 @@
+{
+  "name": "fashion-ai-generator",
+  "version": "1.0.0",
+  "description": "AI Fashion Image Generator",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux"
+  },
+  "build": {
+    "appId": "com.fashionai.generator",
+    "productName": "Fashion AI Generator",
+    "files": [
+      "**/*",
+      "!**/node_modules/*/{CHANGELOG.md,README.md}",
+      "!**/*.map"
+    ],
+    "win": {
+      "target": ["nsis"],
+      "icon": "assets/icons/icon.ico"
+    },
+    "mac": {
+      "target": ["dmg"],
+      "icon": "assets/icons/icon.icns",
+      "category": "public.app-category.graphics-design"
+    },
+    "linux": {
+      "target": ["AppImage"],
+      "icon": "assets/icons/icon.png",
+      "category": "Graphics"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "devDependencies": {
+    "electron": "^33.4.4",
+    "electron-builder": "^25.3.4"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "dotenv": "^16.5.1",
+    "electron-store": "^10.2.0",
+    "express": "^4.20.0",
+    "cors": "^2.8.5"
+  }
+}

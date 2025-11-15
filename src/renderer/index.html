@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Fashion AI Generator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .login-container {
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 3rem;
+            width: 100%;
+            max-width: 450px;
+            animation: slideUp 0.5s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .login-icon {
+            width: 70px;
+            height: 70px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .login-icon i {
+            font-size: 2rem;
+            color: #ffffff;
+        }
+
+        .login-header h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+
+        .login-header p {
+            color: #888;
+            font-size: 0.95rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+            position: relative;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        .input-wrapper i {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #888;
+            font-size: 1.1rem;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.875rem 1rem 0.875rem 3rem;
+            border: 2px solid #e9eef2;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-family: 'Inter', sans-serif;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            margin-right: 0.5rem;
+            cursor: pointer;
+        }
+
+        .checkbox-group label {
+            font-size: 0.9rem;
+            color: #555;
+            cursor: pointer;
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 1rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-login:active {
+            transform: translateY(0);
+        }
+
+        .error-message {
+            background: #fee;
+            color: #d00;
+            padding: 0.875rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            display: none;
+            font-size: 0.9rem;
+            border-left: 4px solid #d00;
+        }
+
+        .error-message.show {
+            display: block;
+            animation: shake 0.4s;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+
+        .login-footer {
+            text-align: center;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid #e9eef2;
+        }
+
+        .login-footer p {
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 480px) {
+            .login-container {
+                padding: 2rem 1.5rem;
+            }
+
+            .login-header h1 {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="login-container">
+    <div class="login-header">
+        <div class="login-icon">
+            <i class="fas fa-paint-brush"></i>
+        </div>
+        <h1>Fashion AI Generator</h1>
+        <p>Sign in to your account</p>
+    </div>
+
+    <div id="errorMessage" class="error-message">
+        Invalid username or password
+    </div>
+
+    <form id="loginForm">
+        <div class="form-group">
+            <label for="username">Username</label>
+            <div class="input-wrapper">
+                <i class="fas fa-user"></i>
+                <input type="text" id="username" placeholder="Enter your username" required autofocus>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="password">Password</label>
+            <div class="input-wrapper">
+                <i class="fas fa-lock"></i>
+                <input type="password" id="password" placeholder="Enter your password" required>
+            </div>
+        </div>
+
+        <div class="checkbox-group">
+            <input type="checkbox" id="rememberMe">
+            <label for="rememberMe">Remember me</label>
+        </div>
+
+        <button type="submit" class="btn-login">
+            <i class="fas fa-sign-in-alt"></i>
+            Sign In
+        </button>
+    </form>
+
+    <div class="login-footer">
+        <p>© 2025 Fashion AI Generator. All rights reserved.</p>
+    </div>
+</div>
+<script>
+    // Simple XOR encryption (basic obfuscation)
+    function simpleEncrypt(text) {
+        let result = '';
+        const key = 'fashionAI2025';
+        for (let i = 0; i < text.length; i++) {
+            result += String.fromCharCode(text.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+        }
+        return btoa(result);
+    }
+
+    function simpleDecrypt(encoded) {
+        try {
+            const text = atob(encoded);
+            let result = '';
+            const key = 'fashionAI2025';
+            for (let i = 0; i < text.length; i++) {
+                result += String.fromCharCode(text.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+            }
+            return result;
+        } catch (e) {
+            return '';
+        }
+    }
+
+    // Check if user is already logged in and remembered
+    window.addEventListener('DOMContentLoaded', () => {
+        if (localStorage.getItem('logged_in') === 'true' &&
+            localStorage.getItem('remember_me') === 'true') {
+            // Auto-login: redirect to dashboard
+            window.location.href = 'dashboard.html';
+            return;
+        }
+
+        // Auto-fill credentials if remembered
+        if (localStorage.getItem('remember_me') === 'true') {
+            const savedUsername = localStorage.getItem('username');
+            const savedPassword = localStorage.getItem('password');
+
+            if (savedUsername) {
+                document.getElementById('username').value = savedUsername;
+            }
+
+            if (savedPassword) {
+                document.getElementById('password').value = simpleDecrypt(savedPassword);
+            }
+
+            document.getElementById('rememberMe').checked = true;
+        }
+    });
+
+    document.getElementById('loginForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+        const rememberMe = document.getElementById('rememberMe').checked;
+        const errorMessage = document.getElementById('errorMessage');
+
+        if (username === 'admin' && password === 'admin') {
+            localStorage.setItem('logged_in', 'true');
+
+            if (rememberMe) {
+                localStorage.setItem('remember_me', 'true');
+                localStorage.setItem('username', username);
+                localStorage.setItem('password', simpleEncrypt(password));
+            } else {
+                localStorage.removeItem('remember_me');
+                localStorage.removeItem('username');
+                localStorage.removeItem('password');
+            }
+
+            // Smooth transition
+            document.querySelector('.login-container').style.opacity = '0';
+            document.querySelector('.login-container').style.transform = 'translateY(-20px)';
+
+            setTimeout(() => {
+                window.location.href = 'dashboard.html';
+            }, 300);
+        } else {
+            errorMessage.classList.add('show');
+            document.getElementById('password').value = '';
+
+            setTimeout(() => {
+                errorMessage.classList.remove('show');
+            }, 3000);
+        }
+    });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,62 @@
+<aside class="sidebar">
+    <div class="sidebar-header">
+        <div class="logo">
+            <i class="fas fa-paint-brush"></i>
+            <h2>AI Generator</h2>
+        </div>
+    </div>
+
+    <nav class="sidebar-nav">
+        <a href="dashboard.html" class="nav-item" data-page="dashboard">
+            <i class="fas fa-home"></i>
+            <span>Dashboard</span>
+        </a>
+
+        <div class="nav-item-parent" onclick="toggleSubmenu(this)">
+            <div class="nav-label">
+                <i class="fas fa-magic"></i>
+                <span>Generate Image</span>
+            </div>
+            <i class="fas fa-chevron-down"></i>
+        </div>
+        <div class="nav-submenu">
+            <a href="by_command.html" class="nav-item" data-page="by_command">
+                <i class="fas fa-terminal"></i>
+                <span>By Command</span>
+            </a>
+            <a href="by_reference.html" class="nav-item" data-page="by_reference">
+                <i class="fas fa-images"></i>
+                <span>By Reference</span>
+            </a>
+            <a href="by_category.html" class="nav-item" data-page="by_category">
+                <i class="fas fa-th-large"></i>
+                <span>By Category</span>
+            </a>
+        </div>
+
+        <a href="history.html" class="nav-item" data-page="history">
+            <i class="fas fa-history"></i>
+            <span>History</span>
+        </a>
+        <a href="settings.html" class="nav-item" data-page="settings">
+            <i class="fas fa-cog"></i>
+            <span>Settings</span>
+        </a>
+    </nav>
+
+    <div class="sidebar-footer">
+        <div class="user-info">
+            <div class="user-avatar">
+                <i class="fas fa-user"></i>
+            </div>
+            <div class="user-details">
+                <span class="user-name" id="userName">Admin</span>
+                <span class="user-role">Administrator</span>
+            </div>
+        </div>
+        <button onclick="logout()" class="btn-logout">
+            <i class="fas fa-sign-out-alt"></i>
+            Logout
+        </button>
+    </div>
+</aside>
