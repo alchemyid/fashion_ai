@@ -9,6 +9,93 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/styles.css">
+    <style>
+        /* Tambahkan style untuk error message */
+        .error-message {
+            display: none;
+            padding: 1rem;
+            background: #fef2f2;
+            color: #b91c1c;
+            border: 1px solid #f87171;
+            border-radius: var(--border-radius);
+            margin-top: 1.5rem;
+            font-size: 0.9rem;
+        }
+
+        /* Style untuk Pemilih Jumlah Gambar */
+        .count-selector {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        .count-btn {
+            background-color: #f5f7fa;
+            border: 2px solid var(--color-border);
+            color: var(--color-text-light);
+            font-weight: 600;
+            width: 40px;
+            height: 40px;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .count-btn:hover {
+            border-color: var(--color-primary);
+            color: var(--color-primary);
+        }
+        .count-btn.active {
+            background-color: var(--color-primary);
+            border-color: var(--color-primary);
+            color: white;
+            box-shadow: 0 4px 6px rgba(102, 126, 234, 0.2);
+        }
+
+        /* Style untuk Thumbnail Grid */
+        .thumbnail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #f5f7fa;
+            border-radius: 8px;
+        }
+        .thumbnail-item {
+            position: relative;
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            background: #e2e8f0;
+        }
+        .thumbnail-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .download-btn {
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            padding: 0.35rem 0.75rem;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            text-decoration: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .thumbnail-item:hover .download-btn {
+            opacity: 1;
+        }
+        .download-btn i {
+            margin-right: 0.25rem;
+        }
+    </style>
 </head>
 <body>
 <div class="dashboard-layout">
@@ -27,26 +114,27 @@
                     <p class="helper-text">Use this as a reference for crafting your prompt</p>
 
                     <div class="example-command">
-                        <strong>Example En:</strong>
-                        "A photorealistic portrait of an elegant young woman wearing a fashionable full-body outfit,
-                        standing in an urban setting with natural lighting.
-                        She is dressed in a modern, stylish ensemble featuring a tailored blazer, high-waisted trousers,
-                        and designer accessories. The background shows a contemporary cityscape with a soft bokeh effect.
-                        Professional fashion photography, high resolution, 8K quality. Remove all magazine text, logos,
-                        captions, headlines, mastheads, barcodes, or watermarks. Object only."
-                    </div>
-
-                    <div style="height: 1rem;"></div>
-
-                    <div class="example-command">
                         <strong>Example ID:</strong>
                         "Sebuah potret photorealistic seorang wanita muda yang elegan mengenakan pakaian full-body modis,
                         berdiri di latar perkotaan dengan pencahayaan alami.
                         Dia mengenakan ansambel modern dan penuh gaya yang menampilkan blazer berpotongan rapi (tailored blazer),
                         celana panjang berpinggang tinggi, dan aksesori desainer.
-                        Latar belakang menunjukkan pemandangan kota kontemporer dengan efek bokeh yang lembut.
                         Fotografi fesyen profesional, resolusi tinggi, kualitas 8K,
                         Hapus semua teks, logo, caption, headline, masthead, barcode, atau watermark majalah. Hanya objek saja"
+                    </div>
+                </div>
+
+                <!-- OPSI JUMLAH GAMBAR BARU -->
+                <div class="form-group">
+                    <label>Jumlah Gambar</label>
+                    <p class="helper-text">Pilih berapa banyak gambar yang ingin Anda buat (1-6)</p>
+                    <div class="count-selector" id="countSelector">
+                        <button type="button" class="count-btn active" data-count="1">1</button>
+                        <button type="button" class="count-btn" data-count="2">2</button>
+                        <button type="button" class="count-btn" data-count="3">3</button>
+                        <button type="button" class="count-btn" data-count="4">4</button>
+                        <button type="button" class="count-btn" data-count="5">5</button>
+                        <button type="button" class="count-btn" data-count="6">6</button>
                     </div>
                 </div>
 
@@ -56,19 +144,25 @@
                     <textarea id="prompt" name="prompt" placeholder="Enter your detailed prompt here..." required></textarea>
                 </div>
 
-                <button type="submit" class="btn-execute">
+                <button type="submit" class="btn-execute" id="generateButton">
                     <i class="fas fa-magic"></i>
                     Execute Generation
                 </button>
             </form>
 
             <div id="loading" style="display:none;">
-                <p><i class="fas fa-spinner fa-spin"></i> Generating... Please wait.</p>
+                <p><i class="fas fa-spinner fa-spin"></i> Generating... Please wait. (Proses ini bisa memakan waktu 15-30 detik)</p>
             </div>
+
+            <!-- Pesan Error Non-Alert -->
+            <div id="errorMessage" class="error-message"></div>
 
             <div id="result" style="display:none;">
                 <h3>Generated Result:</h3>
-                <div id="resultContent" style="padding: 1rem; background: #f5f7fa; border-radius: 8px; white-space: pre-wrap;"></div>
+                <!-- Diubah menjadi Thumbnail Grid -->
+                <div id="resultDisplay" class="thumbnail-grid">
+                    <!-- Hasil gambar akan di-generate di sini oleh JS -->
+                </div>
             </div>
         </div>
     </main>
@@ -79,6 +173,21 @@
     // Load navbar with active menu
     loadNavbar('by_command');
 
+    let selectedCount = 1; // Default jumlah gambar
+
+    // Handler untuk tombol jumlah gambar
+    const countSelector = document.getElementById('countSelector');
+    countSelector.addEventListener('click', (e) => {
+        if (e.target.classList.contains('count-btn')) {
+            // Hapus 'active' dari semua tombol
+            countSelector.querySelectorAll('.count-btn').forEach(btn => btn.classList.remove('active'));
+            // Tambahkan 'active' ke tombol yang diklik
+            e.target.classList.add('active');
+            // Simpan jumlah yang dipilih
+            selectedCount = parseInt(e.target.dataset.count, 10);
+        }
+    });
+
     // Form submission handler
     document.getElementById('commandForm').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -86,30 +195,71 @@
         const prompt = document.getElementById('prompt').value;
         const loading = document.getElementById('loading');
         const result = document.getElementById('result');
-        const resultContent = document.getElementById('resultContent');
+        const resultDisplay = document.getElementById('resultDisplay'); // Target div grid
+        const errorMessage = document.getElementById('errorMessage');
+        const generateButton = document.getElementById('generateButton');
 
+        // Reset UI
         loading.style.display = 'block';
         result.style.display = 'none';
+        errorMessage.style.display = 'none';
+        errorMessage.textContent = '';
+        resultDisplay.innerHTML = ''; // Kosongkan grid hasil sebelumnya
+        generateButton.disabled = true;
+        generateButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
 
         try {
             const response = await fetch('http://localhost:5000/api/generate-by-command', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt })
+                // Kirim prompt dan jumlah gambar
+                body: JSON.stringify({ prompt, sampleCount: selectedCount })
             });
 
             const data = await response.json();
 
-            if (data.success) {
-                resultContent.textContent = data.data.result;
+            if (data.success && data.data.imagesBase64 && Array.isArray(data.data.imagesBase64)) {
+                // **PERBAIKAN UTAMA**: Loop melalui array gambar
+                data.data.imagesBase64.forEach((base64String, index) => {
+                    const dataUrl = 'data:image/png;base64,' + base64String;
+
+                    // Buat container untuk thumbnail
+                    const item = document.createElement('div');
+                    item.className = 'thumbnail-item';
+
+                    // Buat gambar
+                    const img = document.createElement('img');
+                    img.src = dataUrl;
+                    img.alt = `${prompt.substring(0, 20)}... (${index + 1})`;
+
+                    // Buat tombol download
+                    const downloadBtn = document.createElement('a');
+                    downloadBtn.href = dataUrl;
+                    // Beri nama file unik
+                    downloadBtn.download = `fashion-ai-${Date.now()}-${index + 1}.png`;
+                    downloadBtn.className = 'download-btn';
+                    downloadBtn.innerHTML = '<i class="fas fa-download"></i>';
+
+                    // Masukkan ke grid
+                    item.appendChild(img);
+                    item.appendChild(downloadBtn);
+                    resultDisplay.appendChild(item);
+                });
+
                 result.style.display = 'block';
             } else {
-                alert('Error: ' + data.error);
+                // Tampilkan error di UI, bukan alert
+                errorMessage.textContent = 'Error: ' + (data.error || 'Respon API tidak valid.');
+                errorMessage.style.display = 'block';
             }
         } catch (error) {
-            alert('Failed to generate: ' + error.message);
+            // Tampilkan error koneksi di UI
+            errorMessage.textContent = 'Gagal terhubung ke server: ' + error.message;
+            errorMessage.style.display = 'block';
         } finally {
             loading.style.display = 'none';
+            generateButton.disabled = false;
+            generateButton.innerHTML = '<i class="fas fa-magic"></i> Execute Generation';
         }
     });
 </script>

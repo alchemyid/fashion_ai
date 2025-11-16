@@ -15,7 +15,8 @@ if (!process.env.GEMINI_API_KEY) {
 
 function startAPIServer() {
     const apiApp = express();
-    apiApp.use(express.json());
+    // Tambahkan limit agar bisa menerima gambar Base64 besar di Fitur 2
+    apiApp.use(express.json({ limit: '50mb' }));
     apiApp.use(cors());
 
     const aiService = require('./src/backend/ai-service');
@@ -25,16 +26,183 @@ function startAPIServer() {
         res.json({ status: 'ok', timestamp: new Date().toISOString() });
     });
 
-    // Generate by command
+    // Endpoint FITUR 1 (TEKS): Generate by command
     apiApp.post('/api/generate-by-command', async (req, res) => {
         try {
-            const { prompt } = req.body;
-            const result = await aiService.generateImage(prompt);
-            res.json({ success: true, data: result });
+            const { prompt, sampleCount } = req.body;
+            if (!prompt) {
+                return res.status(400).json({ success: false, error: 'Prompt is required.' });
+            }
+            const result = await aiService.generateImage(prompt, sampleCount);
+            if (result.success) {
+                res.json({ success: true, data: { imagesBase64: result.imagesBase64 } });
+            } else {
+                res.status(500).json({ success: false, error: result.error });
+            }
         } catch (error) {
             res.status(500).json({ success: false, error: error.message });
         }
     });
+
+    // Endpoint FITUR 1 (REFERENSI): Generate by Reference
+    apiApp.post('/api/generate-by-reference', async (req, res) => {
+        try {
+            const { referenceBase64, prompt, sampleCount } = req.body;
+            if (!referenceBase64 || !prompt) {
+                return res.status(400).json({ success: false, error: 'referenceBase64 and prompt are required.' });
+            }
+
+            const result = await aiService.generateByReference(referenceBase64, prompt, sampleCount);
+
+            if (result.success) {
+                res.json({ success: true, data: { imagesBase64: result.imagesBase64 } });
+            } else {
+                res.status(500).json({ success: false, error: result.error });
+            }
+        } catch (error) {
+            res.status(500).json({ success: false, error: error.message });
+        }
+    });
+
+
+    // Endpoint FITUR 2 (Langkah 1): Segment Product
+    apiApp.post('/api/segment-product', async (req, res) => {
+        try {
+            const { productBase64, segmentPrompt } = req.body;
+            if (!productBase64 || !segmentPrompt) {
+                return res.status(400).json({ success: false, error: 'productBase64 and segmentPrompt are required.' });
+            }
+            const result = await aiService.segmentProduct(productBase64, segmentPrompt);
+            if (result.success) {
+                res.json({ success: true, data: { imageBase64: result.imageBase64 } });
+            } else {
+                res.status(500).json({ success: false, error: result.error });
+            }
+        } catch (error) {
+            res.status(500).json({ success: false, error: error.message });
+        }
+    });
+
+    // Endpoint FITUR 2 (Langkah 2): Generate Model from Product
+    apiApp.post('/api/generate-model-from-product', async (req, res) => {
+        try {
+            const { prompt, cleanProductBase64, sampleCount, mode, modelReferenceBase64 } = req.body;
+
+            if (!cleanProductBase64 || !mode) {
+                return res.status(400).json({ success: false, error: 'cleanProductBase64 and mode are required.' });
+            }
+            if (mode === 'text' && !prompt) {
+                return res.status(400).json({ success: false, error: 'Prompt is required for text mode.' });
+            }
+            if (mode === 'reference' && !modelReferenceBase64) {
+                return res.status(400).json({ success: false, error: 'modelReferenceBase64 is required for reference mode.' });
+            }
+
+            const result = await aiService.generateModelFromProduct(
+                cleanProductBase64,
+                sampleCount,
+                mode,
+                prompt,
+                modelReferenceBase64
+            );
+
+            if (result.success) {
+                res.json({
+                    success: true,
+                    data: {
+                        imagesBase64: result.imagesBase64,
+                        angleTitles: result.angleTitles
+                    }
+                });
+            } else {
+                res.status(500).json({ success: false, error: result.error });
+            }
+        } catch (error) {
+            res.status(500).json({ success: false, error: error.message });
+        }
+    });
+
+    // Endpoint FITUR 3 (Langkah A - Image-to-Text)
+    apiApp.post('/api/generate-video-prompt', async (req, res) => {
+        try {
+            const { imageBase64 } = req.body;
+            if (!imageBase64) {
+                return res.status(400).json({ success: false, error: 'imageBase64 is required.' });
+            }
+            const result = await aiService.generateVideoPrompt(imageBase64);
+            if (result.success) {
+                res.json({ success: true, data: { prompt: result.prompt } });
+            } else {
+                res.status(500).json({ success: false, error: result.error });
+            }
+        } catch (error) {
+            res.status(500).json({ success: false, error: error.message });
+        }
+    });
+
+    // Endpoint FITUR 3 (Langkah B - Placeholder)
+    apiApp.post('/api/generate-video-from-image', async (req, res) => {
+        try {
+            const { imageBase64, prompt } = req.body;
+            if (!imageBase64 || !prompt) {
+                return res.status(400).json({ success: false, error: 'imageBase64 and prompt are required.' });
+            }
+            // Panggil fungsi placeholder
+            const result = await aiService.generateVideoFromImage(imageBase64, prompt);
+
+            // Ini akan selalu mengembalikan 'success: false'
+            res.json(result);
+
+        } catch (error) {
+            res.status(500).json({ success: false, error: error.message });
+        }
+    });
+
+    // **PERUBAHAN**: Endpoint FITUR 4 (Langkah A - Vision-to-Script)
+    apiApp.post('/api/generate-audio-script', async (req, res) => {
+        try {
+            // **PERUBAHAN**: Terima gambar, bukan deskripsi
+            const { productBase64, modelBase64, platform } = req.body;
+            if (!productBase64 || !modelBase64 || !platform) {
+                return res.status(400).json({ success: false, error: 'productBase64, modelBase64, and platform are required.' });
+            }
+            // **PERUBAHAN**: Kirim gambar ke service
+            const result = await aiService.generateAudioScript(productBase64, modelBase64, platform);
+            if (result.success) {
+                res.json({ success: true, data: { script: result.script } });
+            } else {
+                res.status(500).json({ success: false, error: result.error });
+            }
+        } catch (error) {
+            res.status(500).json({ success: false, error: error.message });
+        }
+    });
+
+    // Endpoint FITUR 4 (Langkah B - Text-to-Speech)
+    apiApp.post('/api/generate-voiceover', async (req, res) => {
+        try {
+            const { script, voiceName } = req.body;
+            if (!script || !voiceName) {
+                return res.status(400).json({ success: false, error: 'script and voiceName are required.' });
+            }
+            const result = await aiService.generateVoiceover(script, voiceName);
+            if (result.success) {
+                // Kirim audio Base64 dan sampleRate
+                res.json({
+                    success: true,
+                    data: {
+                        audioBase64: result.audioBase64,
+                        sampleRate: result.sampleRate
+                    }
+                });
+            } else {
+                res.status(500).json({ success: false, error: result.error });
+            }
+        } catch (error) {
+            res.status(500).json({ success: false, error: error.message });
+        }
+    });
+
 
     apiServer = apiApp.listen(5000, () => {
         console.log('API Server running on http://localhost:5000');
@@ -58,7 +226,8 @@ function createWindow() {
 
     mainWindow.loadFile('src/renderer/index.html');
 
-    if (process.env.NODE_ENV === 'development') {
+    // Selalu buka DevTools jika tidak di production
+    if (process.env.NODE_ENV !== 'production') {
         mainWindow.webContents.openDevTools({ mode: 'detach' });
     }
 

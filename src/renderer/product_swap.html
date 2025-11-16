@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product to Model - Fashion AI Generator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        .error-message {
+            display: none;
+            padding: 1rem;
+            background: #fef2f2;
+            color: #b91c1c;
+            border: 1px solid #f87171;
+            border-radius: var(--border-radius);
+            margin-top: 1.5rem;
+            font-size: 0.9rem;
+        }
+        .upload-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .upload-box {
+            background: #f9fafb;
+            border: 2px dashed var(--color-border);
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.2s, background-color 0.2s, opacity 0.2s;
+        }
+        .upload-box:hover {
+            border-color: var(--color-primary);
+            background: #eff6ff;
+        }
+        .upload-box i {
+            font-size: 2rem;
+            color: var(--color-primary);
+            margin-bottom: 1rem;
+        }
+        .upload-box p {
+            font-weight: 600;
+            color: var(--color-text);
+        }
+        .upload-box span {
+            font-size: 0.85rem;
+            color: var(--color-text-light);
+        }
+        .upload-box input[type="file"] {
+            display: none;
+        }
+        .preview-img {
+            width: 100%;
+            height: 250px;
+            object-fit: contain;
+            border-radius: var(--border-radius);
+            margin-top: 1rem;
+            display: none;
+            background: #f5f7fa;
+        }
+
+        /* Style untuk Pemilih Jumlah Gambar */
+        .count-selector {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        .count-btn {
+            background-color: #f5f7fa;
+            border: 2px solid var(--color-border);
+            color: var(--color-text-light);
+            font-weight: 600;
+            width: 40px;
+            height: 40px;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .count-btn:hover {
+            border-color: var(--color-primary);
+            color: var(--color-primary);
+        }
+        .count-btn.active {
+            background-color: var(--color-primary);
+            border-color: var(--color-primary);
+            color: white;
+            box-shadow: 0 4px 6px rgba(102, 126, 234, 0.2);
+        }
+
+        /* Style untuk Hasil Isolasi (Kolom 2) */
+        .segment-result-box {
+            background: #f9fafb;
+            border: 2px solid var(--color-border);
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            text-align: center;
+        }
+        .segment-result-box.loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 250px;
+        }
+        .segment-result-box .preview-img {
+            background: #e2e8f0; /* Latar abu-abu untuk menunjukkan transparansi */
+        }
+        #cleanProductPreview {
+            display: none; /* Sembunyikan sampai ada hasil */
+        }
+
+        /* Style untuk Tombol Isolasi */
+        .btn-secondary {
+            background-color: #3182ce;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: var(--border-radius);
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        .btn-secondary:hover {
+            background-color: #2b6cb0;
+        }
+        .btn-secondary:disabled {
+            background-color: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        /* Style untuk Thumbnail Grid */
+        .thumbnail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #f5f7fa;
+            border-radius: 8px;
+        }
+        .thumbnail-item {
+            position: relative;
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            background: #e2e8f0;
+        }
+        .thumbnail-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .thumbnail-item p.angle-title {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 4px 8px;
+            text-align: center;
+        }
+        .download-btn {
+            position: absolute;
+            bottom: 8px;
+            right: 8px;
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            padding: 0.35rem 0.75rem;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            text-decoration: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .thumbnail-item:hover .download-btn {
+            opacity: 1;
+        }
+        .download-btn i {
+            margin-right: 0.25rem;
+        }
+
+        /* Style untuk Segmented Control (Tab) */
+        .segmented-control {
+            display: flex;
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            border: 1px solid var(--color-border);
+            width: 100%;
+            margin-bottom: 1rem;
+        }
+        .segmented-control input[type="radio"] { display: none; }
+        .segmented-control label {
+            flex: 1;
+            padding: 0.75rem;
+            text-align: center;
+            cursor: pointer;
+            font-weight: 600;
+            background-color: white;
+            transition: all 0.2s;
+            color: #555;
+            font-size: 0.9rem;
+        }
+        .segmented-control input[type="radio"]:checked + label {
+            background-color: var(--color-primary);
+            color: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1) inset;
+        }
+
+        /* Style untuk input/label yang nonaktif */
+        textarea:disabled {
+            background-color: #f9fafb;
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+<div class="dashboard-layout">
+    <!-- Navbar will be loaded here dynamically -->
+
+    <main class="content">
+        <div class="content-header">
+            <h1><i class="fas fa-tshirt"></i> Product-to-Model Generator</h1>
+            <p>Generate model baru yang mengenakan produk Anda</p>
+        </div>
+
+        <div class="form-card">
+            <form id="swapForm">
+                <!-- ========= LANGKAH 1 & 2: ISOLASI PRODUK ========= -->
+                <h3 class="font-bold text-xl mb-4">Langkah 1 & 2: Siapkan Produk</h3>
+                <div class="upload-grid">
+                    <!-- 1. Gambar Produk Kotor -->
+                    <label for="productImageInput" class="upload-box" id="productUploadLabel">
+                        <i class="fas fa-tshirt"></i>
+                        <p>1. Upload Produk</p>
+                        <span>(Foto asli, boleh kotor)</span>
+                        <img id="productImagePreview" class="preview-img" alt="Preview Produk Asli">
+                        <input type="file" id="productImageInput" accept="image/png, image/jpeg" required>
+                    </label>
+
+                    <!-- 2. Hasil Isolasi Produk -->
+                    <div class="segment-result-box" id="segmentResultBox">
+                        <i class="fas fa-cut"></i>
+                        <p>2. Isolasi Produk</p>
+                        <span>(Hasil bersih akan muncul di sini)</span>
+                        <img id="cleanProductPreview" class="preview-img" alt="Preview Produk Bersih">
+                        <div id="segmentLoading" style="display: none;">
+                            <i class="fas fa-spinner fa-spin"></i> Isolating...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Prompt untuk Segmentasi -->
+                <div class="form-group">
+                    <label for="segmentPrompt">Prompt Isolasi (untuk Langkah 2)</label>
+                    <p class="helper-text">Bantu AI menemukan produk: apa nama objek utama di "Langkah 1"?</p>
+                    <textarea id="segmentPrompt" name="segmentPrompt" placeholder="Contoh: sandal, tas tangan, sepatu kets" required style="min-height: 60px;">sandal japit</textarea>
+                </div>
+
+                <!-- Tombol Isolasi -->
+                <div class="form-group" style="text-align: center; margin-bottom: 2rem;">
+                    <button type="button" class="btn-secondary" id="segmentButton" disabled>
+                        <i class="fas fa-cut"></i>
+                        Jalankan Langkah 2: Isolasi Produk
+                    </button>
+                </div>
+
+                <hr style="margin: 2rem 0;">
+
+                <!-- ========= LANGKAH 3: DESKRIPSI MODEL (BARU) ========= -->
+                <h3 class="font-bold text-xl mb-4">Langkah 3: Tentukan Model & Latar</h3>
+
+                <!-- Tab Pilihan Mode -->
+                <div class="segmented-control">
+                    <input type="radio" id="mode-text" name="generation-mode" value="text" checked>
+                    <label for="mode-text"><i class="fas fa-terminal"></i> Mode Teks</label>
+
+                    <input type="radio" id="mode-reference" name="generation-mode" value="reference">
+                    <label for="mode-reference"><i class="fas fa-image"></i> Mode Referensi</label>
+                </div>
+
+                <!-- Konten untuk Mode Teks -->
+                <div id="text-mode-content">
+                    <div class="form-group">
+                        <label for="prompt">Deskripsi Model & Latar</label>
+                        <p class="helper-text">Jelaskan model, pose, dan latar yang Anda inginkan (seperti Fitur 1)</p>
+                        <textarea id="prompt" name="prompt" placeholder="Contoh: Seorang model wanita duduk di kafe, pencahayaan sore, full body shot" required>Seorang model wanita duduk di dalam ruangan dengan pencahayaan alami yang lembut, mengenakan gaun linen, photorealistic, 8K</textarea>
+                    </div>
+                </div>
+
+                <!-- Konten untuk Mode Referensi -->
+                <div id="reference-mode-content" class="hidden">
+                    <div class="form-group">
+                        <label for="modelReferenceInput" class="upload-box" id="modelReferenceLabel">
+                            <i class="fas fa-user-secret"></i>
+                            <p>Upload Gambar Referensi Model/Pose</p>
+                            <span>(AI akan meniru gaya & pose ini)</span>
+                            <img id="modelReferencePreview" class="preview-img" alt="Preview Referensi Model">
+                            <!-- **TWEAK**: Tambahkan 'disabled' di awal -->
+                            <input type="file" id="modelReferenceInput" accept="image/png, image/jpeg" disabled>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- ========= LANGKAH 4: JUMLAH & GENERATE ========= -->
+                <h3 class="font-bold text-xl mb-4 mt-6">Langkah 4: Generate</h3>
+                <div class="form-group">
+                    <label>Jumlah Angle (Maks 6)</label>
+                    <p class="helper-text">Jika > 1, AI akan otomatis membuat angle berbeda (Full Body, Close Up, dll)</p>
+                    <div class="count-selector" id="countSelector">
+                        <button type="button" class="count-btn active" data-count="1">1</button>
+                        <button type="button" class="count-btn" data-count="2">2</button>
+                        <button type="button" class="count-btn" data-count="3">3</button>
+                        <button type="button" class="count-btn" data-count="4">4</button>
+                        <button type="button" class="count-btn" data-count="5">5</button>
+                        <button type="button" class="count-btn" data-count="6">6</button>
+                    </div>
+                </div>
+
+
+                <button type="submit" class="btn-execute" id="generateButton" disabled>
+                    <i class="fas fa-magic"></i>
+                    Generate Model
+                </button>
+            </form>
+
+            <div id="loading" style="display:none;">
+                <p><i class="fas fa-spinner fa-spin"></i> Generating model... Ini mungkin butuh waktu lebih lama.</p>
+            </div>
+
+            <div id="errorMessage" class="error-message"></div>
+
+            <div id="result" style="display:none;">
+                <h3>Generated Result:</h3>
+                <!-- Diubah menjadi Thumbnail Grid -->
+                <div id="resultDisplay" class="thumbnail-grid">
+                    <!-- Hasil swap akan di-generate di sini oleh JS -->
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script src="js/navbar.js"></script>
+<script>
+    loadNavbar('product_swap');
+
+    let originalProductBase64 = null;
+    let cleanProductBase64 = null;
+    let modelReferenceBase64 = null; // **BARU**: Untuk gambar referensi
+    let selectedCount = 1;
+    let generationMode = 'text'; // **BARU**: 'text' atau 'reference'
+
+    // Cache Elemen DOM
+    const segmentButton = document.getElementById('segmentButton');
+    const generateButton = document.getElementById('generateButton');
+    const segmentLoading = document.getElementById('segmentLoading');
+    const cleanProductPreview = document.getElementById('cleanProductPreview');
+    const errorMessage = document.getElementById('errorMessage');
+    const segmentPrompt = document.getElementById('segmentPrompt');
+    const textModeContent = document.getElementById('text-mode-content');
+    const referenceModeContent = document.getElementById('reference-mode-content');
+    const modelReferenceInput = document.getElementById('modelReferenceInput');
+    const modelReferenceLabel = document.getElementById('modelReferenceLabel'); // **BARU**: Cache label
+    const countSelector = document.getElementById('countSelector');
+    const swapForm = document.getElementById('swapForm');
+    const loading = document.getElementById('loading');
+    const result = document.getElementById('result');
+    const resultDisplay = document.getElementById('resultDisplay');
+    const promptInput = document.getElementById('prompt');
+
+
+    // === EVENT LISTENERS ===
+
+    // Handler untuk Tab Mode
+    document.querySelectorAll('input[name="generation-mode"]').forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            generationMode = e.target.value;
+            if (generationMode === 'text') {
+                // Tampilkan/Sembunyikan UI
+                textModeContent.classList.remove('hidden');
+                referenceModeContent.classList.add('hidden');
+
+                // **TWEAK 1**: Aktifkan Teks, Nonaktifkan Referensi
+                promptInput.disabled = false;
+                modelReferenceInput.disabled = true;
+                modelReferenceLabel.style.cursor = 'not-allowed';
+                modelReferenceLabel.style.opacity = '0.5';
+
+                // Reset input referensi
+                modelReferenceBase64 = null;
+                modelReferenceInput.value = '';
+                document.getElementById('modelReferencePreview').style.display = 'none';
+                modelReferenceLabel.querySelector('p').textContent = 'Upload Gambar Referensi Model/Pose';
+            } else {
+                // Tampilkan/Sembunyikan UI
+                textModeContent.classList.add('hidden');
+                referenceModeContent.classList.remove('hidden');
+
+                // **TWEAK 2**: Nonaktifkan Teks, Aktifkan Referensi
+                promptInput.disabled = true;
+                modelReferenceInput.disabled = false;
+                modelReferenceLabel.style.cursor = 'pointer';
+                modelReferenceLabel.style.opacity = '1';
+            }
+            checkGenerateButtonState(); // Cek ulang apakah tombol generate bisa aktif
+        });
+    });
+
+    // **TWEAK**: Panggil event 'change' di awal untuk mengatur state 'disabled'
+    document.querySelector('input[name="generation-mode"]:checked').dispatchEvent(new Event('change'));
+
+    // Handler untuk tombol jumlah gambar
+    countSelector.addEventListener('click', (e) => {
+        if (e.target.classList.contains('count-btn')) {
+            countSelector.querySelectorAll('.count-btn').forEach(btn => btn.classList.remove('active'));
+            e.target.classList.add('active');
+            selectedCount = parseInt(e.target.dataset.count, 10);
+        }
+    });
+
+    // Event listener untuk uploader
+    document.getElementById('productImageInput').addEventListener('change', (e) => handleFileSelect(e, 'productImagePreview', 'productUploadLabel', 'product'));
+    modelReferenceInput.addEventListener('change', (e) => handleFileSelect(e, 'modelReferencePreview', 'modelReferenceLabel', 'reference'));
+
+    // Event listener untuk tombol ISOLASI PRODUK
+    segmentButton.addEventListener('click', handleSegmentProduct);
+
+    // Form submission handler (Tombol GENERATE MODEL)
+    swapForm.addEventListener('submit', handleGenerateModel);
+
+    // **TWEAK**: Cek tombol generate saat user mengetik di prompt teks
+    promptInput.addEventListener('input', checkGenerateButtonState);
+
+
+    // === FUNGSI LOGIKA ===
+
+    // Fungsi helper untuk konversi file ke Base64
+    function fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = error => reject(error);
+        });
+    }
+
+    // Cek status untuk mengaktifkan tombol
+    function checkSegmentButtonState() {
+        segmentButton.disabled = !originalProductBase64;
+    }
+
+    function checkGenerateButtonState() {
+        // Bisa generate JIKA:
+        // 1. Produk sudah bersih (cleanProductBase64)
+        // 2. DAN (Mode Teks DAN prompt diisi ATAU Mode Referensi DAN file diupload)
+        const textModeReady = (generationMode === 'text' && promptInput.value.trim() !== '');
+        const referenceModeReady = (generationMode === 'reference' && modelReferenceBase64);
+
+        generateButton.disabled = !(cleanProductBase64 && (textModeReady || referenceModeReady));
+    }
+
+    // Fungsi helper untuk menampilkan preview
+    async function handleFileSelect(event, previewEl, labelEl, storageVar) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const preview = document.getElementById(previewEl);
+        const label = document.getElementById(labelEl);
+
+        try {
+            const dataUrl = await fileToBase64(file);
+            preview.src = dataUrl;
+            preview.style.display = 'block';
+            label.querySelector('p').textContent = file.name; // Tampilkan nama file
+
+            const base64Data = dataUrl.split(',')[1];
+
+            if (storageVar === 'product') {
+                originalProductBase64 = base64Data;
+                cleanProductBase64 = null;
+                cleanProductPreview.style.display = 'none';
+                document.getElementById('segmentResultBox').querySelector('p').textContent = 'Langkah 2: Isolasi Produk';
+                checkSegmentButtonState();
+                checkGenerateButtonState();
+            } else if (storageVar === 'reference') {
+                modelReferenceBase64 = base64Data;
+                checkGenerateButtonState();
+            }
+        } catch (error) {
+            console.error("Error reading file:", error);
+            errorMessage.textContent = "Gagal membaca file: " + error.message;
+            errorMessage.style.display = 'block';
+        }
+    }
+
+    // Handler Tombol ISOLASI
+    async function handleSegmentProduct() {
+        if (!originalProductBase64) {
+            errorMessage.textContent = 'Upload gambar produk terlebih dahulu.';
+            errorMessage.style.display = 'block';
+            return;
+        }
+        const segmentPromptText = segmentPrompt.value.trim();
+        if (!segmentPromptText) {
+            errorMessage.textContent = 'Tolong isi "Prompt Isolasi" untuk membantu AI.';
+            errorMessage.style.display = 'block';
+            return;
+        }
+
+        segmentButton.disabled = true;
+        segmentButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mengisolasi...';
+        errorMessage.style.display = 'none';
+        cleanProductPreview.style.display = 'none';
+        segmentLoading.style.display = 'block';
+        generateButton.disabled = true;
+
+        try {
+            const response = await fetch('http://localhost:5000/api/segment-product', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    productBase64: originalProductBase64,
+                    segmentPrompt: segmentPromptText
+                })
+            });
+            const data = await response.json();
+
+            if (data.success && data.data.imageBase64) {
+                cleanProductBase64 = data.data.imageBase64;
+                cleanProductPreview.src = 'data:image/png;base64,' + cleanProductBase64;
+                cleanProductPreview.style.display = 'block';
+                document.getElementById('segmentResultBox').querySelector('p').textContent = 'Produk Bersih (Siap Generate)';
+                checkGenerateButtonState(); // Aktifkan tombol generate jika mode sudah siap
+            } else {
+                errorMessage.textContent = 'Gagal mengisolasi produk: ' + (data.error || 'Respon API tidak valid.');
+                errorMessage.style.display = 'block';
+            }
+        } catch (error) {
+            errorMessage.textContent = 'Gagal terhubung ke server (Isolasi): ' + error.message;
+            errorMessage.style.display = 'block';
+        } finally {
+            segmentButton.disabled = false;
+            segmentButton.innerHTML = '<i class="fas fa-cut"></i> Jalankan Langkah 2: Isolasi Produk';
+            segmentLoading.style.display = 'none';
+        }
+    }
+
+    // Handler Tombol GENERATE
+    async function handleGenerateModel(e) {
+        e.preventDefault();
+
+        // Cek ulang validasi
+        checkGenerateButtonState();
+        if (generateButton.disabled) {
+            errorMessage.textContent = 'Harap lengkapi semua langkah (Produk Bersih dan Mode Teks/Referensi).';
+            errorMessage.style.display = 'block';
+            return;
+        }
+
+        loading.style.display = 'block';
+        result.style.display = 'none';
+        errorMessage.style.display = 'none';
+        errorMessage.textContent = '';
+        resultDisplay.innerHTML = '';
+        generateButton.disabled = true;
+        generateButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+
+        try {
+            const payload = {
+                cleanProductBase64: cleanProductBase64,
+                sampleCount: selectedCount,
+                mode: generationMode,
+                prompt: promptInput.value,
+                modelReferenceBase64: modelReferenceBase64 // Akan null jika mode 'text'
+            };
+
+            const response = await fetch('http://localhost:5000/api/generate-model-from-product', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+
+            if (data.success && data.data.imagesBase64 && Array.isArray(data.data.imagesBase64)) {
+
+                // Judul angle (dari backend)
+                const angleTitles = data.data.angleTitles || [];
+
+                data.data.imagesBase64.forEach((base64String, index) => {
+                    const dataUrl = 'data:image/png;base64,' + base64String;
+                    const title = angleTitles[index] || `Image ${index + 1}`;
+
+                    const item = document.createElement('div');
+                    item.className = 'thumbnail-item';
+
+                    // Tambahkan judul angle
+                    const titleEl = document.createElement('p');
+                    titleEl.className = 'angle-title';
+                    titleEl.textContent = title;
+
+                    const img = document.createElement('img');
+                    img.src = dataUrl;
+                    img.alt = `${title}`;
+
+                    const downloadBtn = document.createElement('a');
+                    downloadBtn.href = dataUrl;
+                    downloadBtn.download = `product-model-${title.replace(' ', '-')}-${Date.now()}.png`;
+                    downloadBtn.className = 'download-btn';
+                    downloadBtn.innerHTML = '<i class="fas fa-download"></i>';
+
+                    item.appendChild(titleEl); // Tambahkan judul
+                    item.appendChild(img);
+                    item.appendChild(downloadBtn);
+                    resultDisplay.appendChild(item);
+                });
+
+                result.style.display = 'block';
+            } else {
+                errorMessage.textContent = 'Error: ' + (data.error || 'Respon API tidak valid.');
+                errorMessage.style.display = 'block';
+            }
+        } catch (error) {
+            errorMessage.textContent = 'Gagal terhubung ke server (Generate): ' + error.message;
+            errorMessage.style.display = 'block';
+        } finally {
+            loading.style.display = 'none';
+            generateButton.disabled = false;
+            generateButton.innerHTML = '<i class="fas fa-magic"></i> Generate Model';
+        }
+    }
+</script>
+</body>
+</html>

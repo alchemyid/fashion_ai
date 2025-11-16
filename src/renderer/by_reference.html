@@ -9,19 +9,135 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/styles.css">
+    <style>
+        .error-message {
+            display: none; padding: 1rem; background: #fef2f2; color: #b91c1c;
+            border: 1px solid #f87171; border-radius: var(--border-radius);
+            margin-top: 1.5rem; font-size: 0.9rem;
+        }
+        .upload-box {
+            background: #f9fafb; border: 2px dashed var(--color-border);
+            border-radius: var(--border-radius); padding: 1.5rem; text-align: center;
+            cursor: pointer; transition: border-color 0.2s, background-color 0.2s;
+        }
+        .upload-box:hover {
+            border-color: var(--color-primary); background: #eff6ff;
+        }
+        .upload-box i {
+            font-size: 2rem; color: var(--color-primary); margin-bottom: 1rem;
+        }
+        .upload-box p { font-weight: 600; color: var(--color-text); }
+        .upload-box span { font-size: 0.85rem; color: var(--color-text-light); }
+        .upload-box input[type="file"] { display: none; }
+        .preview-img {
+            width: 100%; height: 250px; object-fit: contain;
+            border-radius: var(--border-radius); margin-top: 1rem;
+            display: none; background: #f5f7fa;
+        }
+        .count-selector {
+            display: flex; gap: 0.5rem; margin-top: 0.5rem;
+        }
+        .count-btn {
+            background-color: #f5f7fa; border: 2px solid var(--color-border);
+            color: var(--color-text-light); font-weight: 600; width: 40px;
+            height: 40px; border-radius: var(--border-radius); cursor: pointer;
+            transition: all 0.2s;
+        }
+        .count-btn:hover {
+            border-color: var(--color-primary); color: var(--color-primary);
+        }
+        .count-btn.active {
+            background-color: var(--color-primary); border-color: var(--color-primary);
+            color: white; box-shadow: 0 4px 6px rgba(102, 126, 234, 0.2);
+        }
+        .thumbnail-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1.5rem; margin-top: 1rem; padding: 1rem;
+            background: #f5f7fa; border-radius: 8px;
+        }
+        .thumbnail-item {
+            position: relative; border-radius: var(--border-radius);
+            overflow: hidden; box-shadow: var(--shadow); background: #e2e8f0;
+        }
+        .thumbnail-item img {
+            width: 100%; height: 100%; object-fit: cover; display: block;
+        }
+        .download-btn {
+            position: absolute; bottom: 8px; right: 8px;
+            background: rgba(0, 0, 0, 0.6); color: white; border: none;
+            border-radius: 50px; padding: 0.35rem 0.75rem; font-size: 0.8rem;
+            font-weight: 500; cursor: pointer; text-decoration: none;
+            opacity: 0; transition: opacity 0.2s;
+        }
+        .thumbnail-item:hover .download-btn { opacity: 1; }
+        .download-btn i { margin-right: 0.25rem; }
+    </style>
 </head>
 <body>
 <div class="dashboard-layout">
-    <!-- Navbar will be loaded here -->
+    <!-- Navbar will be loaded here dynamically -->
 
     <main class="content">
         <div class="content-header">
             <h1><i class="fas fa-images"></i> Generate by Reference</h1>
-            <p>Upload reference images to generate similar content</p>
+            <p>Buat gambar baru berdasarkan foto referensi dan prompt teks</p>
         </div>
 
         <div class="form-card">
-            <p>Coming soon...</p>
+            <form id="referenceForm">
+
+                <!-- 1. Upload Gambar Referensi -->
+                <div class="form-group">
+                    <label>Gambar Referensi</label>
+                    <p class="helper-text">Upload gambar yang ingin Anda gunakan sebagai inspirasi utama.</p>
+                    <label for="referenceImageInput" class="upload-box" id="referenceUploadLabel">
+                        <i class="fas fa-image"></i>
+                        <p>Upload Gambar Referensi</p>
+                        <span>(PNG, JPG, dll)</span>
+                        <img id="referenceImagePreview" class="preview-img" alt="Preview Referensi">
+                        <input type="file" id="referenceImageInput" accept="image/png, image/jpeg" required>
+                    </label>
+                </div>
+
+                <!-- 2. Prompt Teks -->
+                <div class="form-group">
+                    <label for="prompt">Your Command Prompt</label>
+                    <p class="helper-text">Jelaskan perubahan yang Anda inginkan pada gambar referensi.</p>
+                    <textarea id="prompt" name="prompt" placeholder="Contoh: ubah warna logo ini menjadi merah, buat gambar ini terlihat seperti lukisan cat air, tambahkan efek salju" required></textarea>
+                </div>
+
+                <!-- 3. Opsi Jumlah Gambar -->
+                <div class="form-group">
+                    <label>Jumlah Gambar</label>
+                    <p class="helper-text">Pilih berapa banyak variasi yang ingin Anda buat (1-6)</p>
+                    <div class="count-selector" id="countSelector">
+                        <button type="button" class="count-btn active" data-count="1">1</button>
+                        <button type="button" class="count-btn" data-count="2">2</button>
+                        <button type="button" class="count-btn" data-count="3">3</button>
+                        <button type="button" class="count-btn" data-count="4">4</button>
+                        <button type="button" class="count-btn" data-count="5">5</button>
+                        <button type="button" class="count-btn" data-count="6">6</button>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-execute" id="generateButton" disabled>
+                    <i class="fas fa-magic"></i>
+                    Execute Generation
+                </button>
+            </form>
+
+            <div id="loading" style="display:none;">
+                <p><i class="fas fa-spinner fa-spin"></i> Generating... Please wait.</p>
+            </div>
+
+            <div id="errorMessage" class="error-message"></div>
+
+            <div id="result" style="display:none;">
+                <h3>Generated Result:</h3>
+                <div id="resultDisplay" class="thumbnail-grid">
+                    <!-- Hasil gambar akan di-generate di sini oleh JS -->
+                </div>
+            </div>
         </div>
     </main>
 </div>
@@ -29,6 +145,140 @@
 <script src="js/navbar.js"></script>
 <script>
     loadNavbar('by_reference');
+
+    let referenceBase64 = null;
+    let selectedCount = 1;
+
+    // Cache Elemen
+    const referenceForm = document.getElementById('referenceForm');
+    const referenceImageInput = document.getElementById('referenceImageInput');
+    const promptInput = document.getElementById('prompt');
+    const generateButton = document.getElementById('generateButton');
+    const countSelector = document.getElementById('countSelector');
+    const loading = document.getElementById('loading');
+    const result = document.getElementById('result');
+    const resultDisplay = document.getElementById('resultDisplay');
+    const errorMessage = document.getElementById('errorMessage');
+
+    // Fungsi helper untuk konversi file ke Base64
+    function fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = error => reject(error);
+        });
+    }
+
+    // Cek status tombol Generate
+    function checkGenerateButtonState() {
+        // Aktifkan hanya jika gambar DAN prompt sudah diisi
+        generateButton.disabled = !(referenceBase64 && promptInput.value.trim() !== '');
+    }
+
+    // Handler untuk upload file
+    referenceImageInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const preview = document.getElementById('referenceImagePreview');
+        const label = document.getElementById('referenceUploadLabel');
+
+        try {
+            const dataUrl = await fileToBase64(file);
+            preview.src = dataUrl;
+            preview.style.display = 'block';
+            label.querySelector('p').textContent = file.name; // Tampilkan nama file
+
+            referenceBase64 = dataUrl.split(',')[1];
+            checkGenerateButtonState();
+        } catch (error) {
+            console.error("Error reading file:", error);
+            errorMessage.textContent = "Gagal membaca file: " + error.message;
+            errorMessage.style.display = 'block';
+        }
+    });
+
+    // Handler untuk ketik prompt
+    promptInput.addEventListener('input', checkGenerateButtonState);
+
+    // Handler untuk tombol jumlah
+    countSelector.addEventListener('click', (e) => {
+        if (e.target.classList.contains('count-btn')) {
+            countSelector.querySelectorAll('.count-btn').forEach(btn => btn.classList.remove('active'));
+            e.target.classList.add('active');
+            selectedCount = parseInt(e.target.dataset.count, 10);
+        }
+    });
+
+    // Handler Form Submit
+    referenceForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        checkGenerateButtonState(); // Cek sekali lagi
+        if (generateButton.disabled) return;
+
+        // Reset UI
+        loading.style.display = 'block';
+        result.style.display = 'none';
+        errorMessage.style.display = 'none';
+        errorMessage.textContent = '';
+        resultDisplay.innerHTML = '';
+        generateButton.disabled = true;
+        generateButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+
+        try {
+            const payload = {
+                referenceBase64: referenceBase64,
+                prompt: promptInput.value,
+                sampleCount: selectedCount
+            };
+
+            // Panggil endpoint backend BARU
+            const response = await fetch('http://localhost:5000/api/generate-by-reference', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+
+            if (data.success && data.data.imagesBase64 && Array.isArray(data.data.imagesBase64)) {
+                // Loop dan tampilkan hasil
+                data.data.imagesBase64.forEach((base64String, index) => {
+                    const dataUrl = 'data:image/png;base64,' + base64String;
+
+                    const item = document.createElement('div');
+                    item.className = 'thumbnail-item';
+
+                    const img = document.createElement('img');
+                    img.src = dataUrl;
+                    img.alt = `Reference generation ${index + 1}`;
+
+                    const downloadBtn = document.createElement('a');
+                    downloadBtn.href = dataUrl;
+                    downloadBtn.download = `reference-gen-${Date.now()}-${index + 1}.png`;
+                    downloadBtn.className = 'download-btn';
+                    downloadBtn.innerHTML = '<i class="fas fa-download"></i>';
+
+                    item.appendChild(img);
+                    item.appendChild(downloadBtn);
+                    resultDisplay.appendChild(item);
+                });
+
+                result.style.display = 'block';
+            } else {
+                errorMessage.textContent = 'Error: ' + (data.error || 'Respon API tidak valid.');
+                errorMessage.style.display = 'block';
+            }
+        } catch (error) {
+            errorMessage.textContent = 'Gagal terhubung ke server: ' + error.message;
+            errorMessage.style.display = 'block';
+        } finally {
+            loading.style.display = 'none';
+            generateButton.disabled = false;
+            generateButton.innerHTML = '<i class="fas fa-magic"></i> Execute Generation';
+        }
+    });
 </script>
 </body>
 </html>

@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image to Video - Fashion AI Generator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        .error-message {
+            display: none; padding: 1rem; background: #fef2f2; color: #b91c1c;
+            border: 1px solid #f87171; border-radius: var(--border-radius);
+            margin-top: 1.5rem; font-size: 0.9rem;
+        }
+        .upload-box {
+            background: #f9fafb; border: 2px dashed var(--color-border);
+            border-radius: var(--border-radius); padding: 1.5rem; text-align: center;
+            cursor: pointer; transition: border-color 0.2s, background-color 0.2s;
+            width: 100%;
+        }
+        .upload-box:hover {
+            border-color: var(--color-primary); background: #eff6ff;
+        }
+        .upload-box i {
+            font-size: 2rem; color: var(--color-primary); margin-bottom: 1rem;
+        }
+        .upload-box p { font-weight: 600; color: var(--color-text); }
+        .upload-box span { font-size: 0.85rem; color: var(--color-text-light); }
+        .upload-box input[type="file"] { display: none; }
+        .preview-img {
+            width: 100%; /* Lebar penuh di dalam kolomnya */
+            height: auto;
+            max-height: 400px; /* Batasi tinggi preview */
+            object-fit: contain;
+            border-radius: var(--border-radius); margin-top: 1rem;
+            display: none; background: #f5f7fa;
+        }
+        .btn-secondary {
+            background-color: #3182ce; color: white; padding: 0.75rem 1.5rem; border: none;
+            border-radius: var(--border-radius); font-size: 0.9rem; font-weight: 600;
+            cursor: pointer; transition: background-color 0.3s;
+            display: inline-flex; align-items: center; gap: 0.5rem;
+        }
+        .btn-secondary:hover { background-color: #2b6cb0; }
+        .btn-secondary:disabled { background-color: #9ca3af; cursor: not-allowed; }
+
+        /* Layout 2 Kolom */
+        .feature-layout {
+            display: grid;
+            grid-template-columns: 1fr; /* Default 1 kolom di mobile */
+            gap: 2rem;
+        }
+        @media (min-width: 1024px) {
+            .feature-layout {
+                grid-template-columns: 1fr 1fr; /* 2 kolom di desktop */
+            }
+        }
+
+        /* Kolom Hasil (Kanan) */
+        .result-column {
+            background: #f9fafb;
+            border: 1px solid var(--color-border);
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            /* Sticky di desktop */
+            position: sticky;
+            top: 2rem;
+        }
+
+        /* Box untuk hasil video (placeholder) */
+        #videoResultDisplay {
+            width: 100%;
+            aspect-ratio: 1 / 1; /* Asumsi video kotak */
+            background: #e2e8f0;
+            border-radius: var(--border-radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            margin-top: 1rem; /* Ubah dari margin auto */
+            color: var(--color-text-light);
+            font-weight: 600;
+            border: 2px dashed var(--color-border);
+        }
+        #videoResultDisplay i {
+            font-size: 3rem;
+        }
+        #videoResultDisplay video {
+            width: 100%;
+            height: 100%;
+            border-radius: var(--border-radius);
+        }
+    </style>
+</head>
+<body>
+<div class="dashboard-layout">
+    <!-- Navbar will be loaded here dynamically -->
+
+    <main class="content">
+        <div class="content-header">
+            <h1><i class="fas fa-film"></i> Image to Video (Fitur 3)</h1>
+            <p>Menganimasikan gambar Anda menjadi video pendek untuk e-commerce</p>
+        </div>
+
+        <!-- **PERUBAHAN**: Hapus form-card, gunakan layout 2 kolom -->
+        <div class="feature-layout">
+
+            <!-- Kolom Kontrol (Kiri) -->
+            <div class="controls-column">
+                <form id="videoForm" class="form-card" style="margin: 0;"> <!-- form-card di sini -->
+
+                    <!-- 1. Upload Gambar Final (dari Fitur 2) -->
+                    <div class="form-group" style="text-align: center;">
+                        <label class="font-bold text-xl mb-4 block">Langkah 1: Upload Gambar Final</label>
+                        <p class="helper-text">Upload gambar (model + produk) yang sudah Anda siapkan.</p>
+                        <label for="imageInput" class="upload-box" id="imageUploadLabel">
+                            <i class="fas fa-image"></i>
+                            <p>Upload Gambar (Model + Produk)</p>
+                            <span>(Hasil dari Fitur 1 atau 2)</span>
+                            <img id="imagePreview" class="preview-img" alt="Preview Gambar">
+                            <input type="file" id="imageInput" accept="image/png, image/jpeg" required>
+                        </label>
+                    </div>
+
+                    <!-- 2. Tombol Analisis AI -->
+                    <div class="form-group" style="text-align: center; margin-top: 2rem;">
+                        <button type="button" class="btn-secondary" id="analyzeButton" disabled>
+                            <i class="fas fa-wand-magic-sparkles"></i>
+                            Langkah 2: Dapatkan Rekomendasi Prompt
+                        </button>
+                    </div>
+
+                    <!-- 3. Prompt Teks (Bisa diedit) -->
+                    <div class="form-group">
+                        <label for="prompt" class="font-bold text-xl mb-4 block">Langkah 3: Edit Prompt Video</label>
+                        <p class="helper-text">AI akan merekomendasikan prompt di sini. Anda bisa mengubahnya.</p>
+                        <textarea id="prompt" name="prompt" placeholder="Rekomendasi prompt akan muncul di sini setelah Langkah 2..." required disabled style="min-height: 150px;"></textarea>
+                    </div>
+
+
+                    <button type="submit" class="btn-execute" id="generateButton" disabled>
+                        <i class="fas fa-video"></i>
+                        Langkah 4: Execute Image-to-Video
+                    </button>
+                </form>
+            </div>
+
+            <!-- Kolom Hasil (Kanan) -->
+            <div class="result-column">
+                <h3 class="font-bold text-xl mb-2">Hasil Video (Placeholder)</h3>
+
+                <div id="loading" style="display:none;">
+                    <p><i class="fas fa-spinner fa-spin"></i> Menganalisis gambar...</p>
+                </div>
+
+                <div id="errorMessage" class="error-message"></div>
+
+                <!-- 4. Hasil Video (Placeholder) -->
+                <div id="videoResultDisplay">
+                    <div>
+                        <i class="fas fa-video-slash"></i>
+                        <p>Hasil Video Akan Muncul Disini</p>
+                    </div>
+                </div>
+
+                <!-- **BARU**: Tombol Download (disembunyikan) -->
+                <a href="#" id="downloadVideoBtn" download="fashion-video.mp4" class="btn-execute" style="display: none; width: 100%; text-align: center; margin-top: 1rem; justify-content: center;">
+                    <i class="fas fa-download"></i>
+                    Download Video
+                </a>
+            </div>
+
+        </div> <!-- end feature-layout -->
+    </main>
+</div>
+
+<script src="js/navbar.js"></script>
+<script>
+    loadNavbar('image2video');
+
+    let imageBase64 = null;
+
+    // Cache Elemen
+    const videoForm = document.getElementById('videoForm');
+    const imageInput = document.getElementById('imageInput');
+    const analyzeButton = document.getElementById('analyzeButton');
+    const promptInput = document.getElementById('prompt');
+    const generateButton = document.getElementById('generateButton');
+    const loading = document.getElementById('loading');
+    const errorMessage = document.getElementById('errorMessage');
+    const videoResultDisplay = document.getElementById('videoResultDisplay');
+    const downloadVideoBtn = document.getElementById('downloadVideoBtn');
+
+    // Fungsi helper untuk konversi file ke Base64
+    function fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = error => reject(error);
+        });
+    }
+
+    // Handler untuk upload file
+    imageInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const preview = document.getElementById('imagePreview');
+        const label = document.getElementById('imageUploadLabel');
+
+        try {
+            const dataUrl = await fileToBase64(file);
+            preview.src = dataUrl;
+            preview.style.display = 'block';
+            label.querySelector('p').textContent = file.name;
+
+            imageBase64 = dataUrl.split(',')[1];
+
+            // Aktifkan Langkah 2
+            analyzeButton.disabled = false;
+            promptInput.disabled = true;
+            promptInput.value = '';
+            generateButton.disabled = true;
+            downloadVideoBtn.style.display = 'none'; // Sembunyikan tombol download
+
+        } catch (error) {
+            errorMessage.textContent = "Gagal membaca file: " + error.message;
+            errorMessage.style.display = 'block';
+        }
+    });
+
+    // Handler Tombol ANALISIS (AI Langkah A)
+    analyzeButton.addEventListener('click', async () => {
+        if (!imageBase64) return;
+
+        // Tampilkan loading
+        loading.style.display = 'block';
+        loading.querySelector('p').innerHTML = '<i class="fas fa-spinner fa-spin"></i> AI sedang menganalisis gambar...';
+        errorMessage.style.display = 'none';
+        analyzeButton.disabled = true;
+        generateButton.disabled = true;
+        promptInput.disabled = true;
+
+        try {
+            const response = await fetch('http://localhost:5000/api/generate-video-prompt', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ imageBase64: imageBase64 })
+            });
+
+            const data = await response.json();
+
+            if (data.success && data.data.prompt) {
+                // Sukses! Masukkan rekomendasi ke textarea
+                promptInput.value = data.data.prompt;
+                promptInput.disabled = false;
+                generateButton.disabled = false; // Aktifkan Langkah 4
+            } else {
+                errorMessage.textContent = 'Gagal menganalisis gambar: ' + (data.error || 'Respon AI tidak valid.');
+                errorMessage.style.display = 'block';
+            }
+
+        } catch (error) {
+            errorMessage.textContent = 'Gagal terhubung ke server (Analisis): ' + error.message;
+            errorMessage.style.display = 'block';
+        } finally {
+            loading.style.display = 'none';
+            analyzeButton.disabled = false; // Aktifkan kembali tombol analisis
+        }
+    });
+
+
+    // Handler Tombol EXECUTE (AI Langkah B - Placeholder)
+    videoForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const videoPrompt = promptInput.value;
+        if (!videoPrompt) {
+            errorMessage.textContent = 'Prompt video tidak boleh kosong.';
+            errorMessage.style.display = 'block';
+            return;
+        }
+
+        // Tampilkan loading
+        loading.style.display = 'block';
+        loading.querySelector('p').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menghubungi API Video Generation...';
+        errorMessage.style.display = 'none';
+        generateButton.disabled = true;
+        downloadVideoBtn.style.display = 'none'; // Sembunyikan tombol download
+
+        try {
+            const response = await fetch('http://localhost:5000/api/generate-video-from-image', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    imageBase64: imageBase64,
+                    prompt: videoPrompt
+                })
+            });
+
+            const data = await response.json();
+
+            // PENTING: Ini akan selalu gagal (error) karena API-nya belum ada
+            if (data.success && data.data.videoBase64) {
+                // **LOGIKA JIKA API SUKSES**
+                const videoUrl = 'data:video/mp4;base64,' + data.data.videoBase64;
+                videoResultDisplay.innerHTML = `<video controls autoplay loop src="${videoUrl}"></video>`;
+
+                // Siapkan tombol download
+                downloadVideoBtn.href = videoUrl;
+                downloadVideoBtn.style.display = 'inline-flex';
+
+            } else {
+                // **LOGIKA PLACEHOLDER SAAT INI**
+                // Tampilkan pesan "Coming Soon"
+                errorMessage.innerHTML = `<b>Fitur Dalam Pengembangan</b><br>${data.error || 'API untuk Image-to-Video belum tersedia.'}<br>Logika prompt Anda sudah benar, namun eksekusi video belum dapat dilakukan.`;
+                errorMessage.style.display = 'block';
+                // Tampilkan placeholder abu-abu lagi
+                videoResultDisplay.innerHTML = '<div><i class="fas fa-video-slash"></i><p>Hasil Video Akan Muncul Disini</p></div>';
+            }
+
+        } catch (error) {
+            errorMessage.textContent = 'Gagal terhubung ke server (Video): ' + error.message;
+            errorMessage.style.display = 'block';
+        } finally {
+            loading.style.display = 'none';
+            generateButton.disabled = false;
+        }
+    });
+</script>
+</body>
+</html>
