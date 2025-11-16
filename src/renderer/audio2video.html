@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Audio Generator - Fashion AI Generator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        .error-message {
+            display: none; padding: 1rem; background: #fef2f2; color: #b91c1c;
+            border: 1px solid #f87171; border-radius: var(--border-radius);
+            margin-top: 1.5rem; font-size: 0.9rem;
+        }
+
+        /* Layout 2 Kolom */
+        .feature-layout {
+            display: grid;
+            grid-template-columns: 1fr; /* Default 1 kolom di mobile */
+            gap: 2rem;
+        }
+        @media (min-width: 1024px) {
+            .feature-layout {
+                grid-template-columns: 1fr 1fr; /* 2 kolom di desktop */
+            }
+        }
+
+        /* Kolom Hasil (Kanan) */
+        .result-column {
+            background: #f9fafb;
+            border: 1px solid var(--color-border);
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            position: sticky;
+            top: 2rem;
+        }
+
+        /* Style untuk Tombol & Input */
+        .btn-secondary {
+            background-color: #3182ce; color: white; padding: 0.75rem 1.5rem; border: none;
+            border-radius: var(--border-radius); font-size: 0.9rem; font-weight: 600;
+            cursor: pointer; transition: background-color 0.3s;
+            display: inline-flex; align-items: center; gap: 0.5rem;
+        }
+        .btn-secondary:hover { background-color: #2b6cb0; }
+        .btn-secondary:disabled { background-color: #9ca3af; cursor: not-allowed; }
+
+        .form-group select {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            border: 2px solid var(--color-border);
+            border-radius: var(--border-radius);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.95rem;
+            background-color: white;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+            background-position: right 0.75rem center;
+            background-repeat: no-repeat;
+            background-size: 1.25em;
+        }
+
+        /* Box untuk hasil audio */
+        #audioResultDisplay {
+            width: 100%;
+            margin-top: 1rem;
+        }
+        #audioResultDisplay audio {
+            width: 100%;
+        }
+        #audioPlaceholder {
+            width: 100%;
+            aspect-ratio: 16 / 4;
+            background: #e2e8f0;
+            border-radius: var(--border-radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            color: var(--color-text-light);
+            font-weight: 600;
+            border: 2px dashed var(--color-border);
+        }
+        #audioPlaceholder i { font-size: 2rem; }
+
+        /* UI untuk Upload Gambar */
+        .upload-grid-audio {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .upload-box {
+            background: #f9fafb; border: 2px dashed var(--color-border);
+            border-radius: var(--border-radius); padding: 1.5rem; text-align: center;
+            cursor: pointer; transition: border-color 0.2s, background-color 0.2s;
+            position: relative;
+        }
+        .upload-box:hover {
+            border-color: var(--color-primary); background: #eff6ff;
+        }
+        .upload-box i {
+            font-size: 2rem; color: var(--color-primary); margin-bottom: 0.5rem;
+        }
+        .upload-box p { font-weight: 600; color: var(--color-text); font-size: 0.9rem; }
+        .upload-box input[type="file"] { display: none; }
+        .preview-img-audio {
+            width: 100%;
+            height: 150px;
+            object-fit: contain;
+            border-radius: var(--border-radius);
+            margin-top: 1rem;
+            display: none;
+            background: #f5f7fa;
+        }
+
+        /* ===== CSS BARU UNTUK REKOMENDASI ===== */
+        .result-column .form-group {
+            margin-top: 2rem;
+            border-top: 2px solid var(--color-border);
+            padding-top: 2rem;
+        }
+        .result-column .form-group input[type="text"] {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            border: 2px solid var(--color-border);
+            border-radius: var(--border-radius);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.95rem;
+            background-color: white;
+        }
+        .result-column .form-group input[type="text"]:focus {
+            outline: none;
+            border-color: var(--color-primary);
+        }
+        .recommendation-box {
+            background-color: #f0f3f7; /* Latar sedikit beda */
+            border: 1px solid var(--color-border);
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            margin-top: 1rem;
+            display: none; /* Sembunyi by default */
+            white-space: pre-wrap; /* Jaga format teks dari AI */
+            font-size: 0.9rem;
+            color: var(--color-text);
+        }
+        .recommendation-box h4 {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        .recommendation-box ul {
+            list-style-type: disc;
+            padding-left: 1.5rem;
+            margin-top: 0.5rem;
+        }
+        .recommendation-box li {
+            margin-bottom: 0.25rem;
+        }
+        .recommendation-box p {
+            margin-bottom: 0.5rem;
+        }
+        .loading-inline {
+            display: none; /* Sembunyi by default */
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.9rem;
+            color: var(--color-text-light);
+            margin-top: 1rem;
+        }
+        .loading-inline i {
+            color: var(--color-primary);
+        }
+        /* ===== AKHIR CSS BARU ===== */
+    </style>
+</head>
+<body>
+<div class="dashboard-layout">
+    <!-- Navbar will be loaded here dynamically -->
+
+    <main class="content">
+        <div class="content-header">
+            <h1><i class="fas fa-microphone-alt"></i> AI Audio Generator (Fitur 4)</h1>
+            <p>Buat naskah iklan dan voiceover profesional untuk produk Anda</p>
+        </div>
+
+        <div class="feature-layout">
+
+            <!-- Kolom Kontrol (Kiri) -->
+            <div class="controls-column">
+                <div class="form-card" style="margin: 0;">
+
+                    <!-- Langkah 1: Pilih Platform -->
+                    <div class="form-group">
+                        <label for="platformSelect" class="font-bold text-xl mb-4 block">Langkah 1: Target Platform</label>
+                        <p class="helper-text">AI akan menyesuaikan gaya naskah berdasarkan platform.</p>
+                        <select id="platformSelect">
+                            <option value="tiktok">TikTok (Cepat, Trendy, Hook Kuat)</option>
+                            <option value="instagram">Instagram Reels (Estetik, Storytelling)</option>
+                            <option value="youtube">YouTube Shorts (Informatif, Jelas)</option>
+                            <option value="shopee">E-Commerce (Shopee/Tokopedia - Sales, Promo)</option>
+                        </select>
+                    </div>
+
+                    <!-- **BARU**: Langkah 2: Durasi -->
+                    <div class="form-group">
+                        <label for="durationSelect" class="font-bold text-xl mb-4 block">Langkah 2: Tentukan Durasi Naskah</label>
+                        <p class="helper-text">Pilih total durasi video yang Anda inginkan.</p>
+                        <select id="durationSelect">
+                            <option value="15 detik">15 Detik (Cepat & Padat)</option>
+                            <option value="30 detik" selected>30 Detik (Standar Iklan)</option>
+                            <option value="60 detik">60 Detik (Informatif)</option>
+                        </select>
+                    </div>
+
+                    <!-- **UPDATE**: Langkah 3: Upload Gambar -->
+                    <div class="form-group">
+                        <label class="font-bold text-xl mb-4 block">Langkah 3: Upload Aset Visual</label>
+                        <p class="helper-text">AI akan menganalisis kedua gambar untuk membuat naskah.</p>
+                        <div class="upload-grid-audio">
+                            <!-- Upload Produk -->
+                            <label for="productImageInput" class="upload-box" id="productUploadLabel">
+                                <i class="fas fa-tshirt"></i>
+                                <p>Upload Produk</p>
+                                <img id="productImagePreview" class="preview-img-audio" alt="Preview Produk">
+                                <input type="file" id="productImageInput" accept="image/png, image/jpeg" required>
+                            </label>
+                            <!-- Upload Model -->
+                            <label for="modelImageInput" class="upload-box" id="modelUploadLabel">
+                                <i class="fas fa-user"></i>
+                                <p>Upload Model</p>
+                                <img id="modelImagePreview" class="preview-img-audio" alt="Preview Model">
+                                <input type="file" id="modelImageInput" accept="image/png, image/jpeg" required>
+                            </label>
+                        </div>
+                    </div>
+
+
+                    <!-- **UPDATE**: Langkah 4: Tombol Generate Script -->
+                    <div class="form-group" style="margin-top: 2rem;">
+                        <button type="button" class="btn-secondary" id="generateScriptButton" disabled>
+                            <i class="fas fa-wand-magic-sparkles"></i>
+                            Langkah 4: Generate Script Iklan
+                        </button>
+                    </div>
+
+                    <!-- **UPDATE**: Langkah 5: Edit Script -->
+                    <div class="form-group">
+                        <label for="scriptOutput" class="font-bold text-xl mb-4 block">Langkah 5: Naskah Sutradara (Read-Only)</label>
+                        <p class="helper-text">Hasil naskah lengkap (visual, audio, vo) akan muncul di sini.</p>
+                        <textarea id="scriptOutput" placeholder="Naskah iklan akan muncul di sini..." readonly style="min-height: 180px; background-color: #f9fafb;"></textarea>
+                    </div>
+
+                    <!-- **UPDATE**: Langkah 6: Pilih Suara -->
+                    <div class="form-group">
+                        <label for="voiceSelect" class="font-bold text-xl mb-4 block">Langkah 6: Pilih Suara</label>
+                        <p class="helper-text">Pilih karakter suara untuk voiceover Anda.</p>
+                        <select id="voiceSelect">
+                            <option value="Kore">Suara Pria (Tegas & Jelas)</option>
+                            <option value="Puck">Suara Pria (Upbeat & Ramah)</option>
+                            <option value="Zephyr">Suara Wanita (Ceria & Terang)</option>
+                            <option value="Callirrhoe">Suara Wanita (Tenang & Lembut)</option>
+                            <option value="Orus">Suara Pria (Firm)</option>
+                            <option value="Leda">Suara Wanita (Muda)</option>
+                        </select>
+                    </div>
+
+                    <!-- **UPDATE**: Langkah 7: Tombol Generate Voiceover -->
+                    <button type="button" class="btn-execute" id="generateVoiceButton" disabled>
+                        <i class="fas fa-microphone-alt"></i>
+                        Langkah 7: Generate Voiceover
+                    </button>
+                </div>
+            </div>
+
+            <!-- Kolom Hasil (Kanan) -->
+            <div class="result-column">
+                <h3 class="font-bold text-xl mb-2">Hasil Voiceover</h3>
+
+                <div id="loading" style="display:none;">
+                    <p><i class="fas fa-spinner fa-spin"></i> Loading...</p>
+                </div>
+
+                <div id="errorMessage" class="error-message"></div>
+
+                <!-- Hasil Audio Player -->
+                <div id="audioResultDisplay">
+                    <div id="audioPlaceholder">
+                        <div>
+                            <i class="fas fa-headphones"></i>
+                            <p>Audio Player Akan Muncul Disini</p>
+                        </div>
+                    </div>
+                    <audio id="audioPlayer" controls style="display: none; width: 100%;"></audio>
+                </div>
+
+                <!-- Tombol Download -->
+                <a href="#" id="downloadAudioBtn" download="fashion-vo.wav" class="btn-execute" style="display: none; width: 100%; text-align: center; margin-top: 1rem; justify-content: center;">
+                    <i class="fas fa-download"></i>
+                    Download .WAV
+                </a>
+
+                <!-- **UPDATE**: Langkah 8: Rekomendasi -->
+                <div class="form-group"> <!-- Ini adalah grup baru di kolom kanan -->
+                    <h3 class="font-bold text-xl mb-4">Langkah 8: Rekomendasi Audio Lanjutan</h3>
+                    <p class="helper-text mb-6" style="font-size: 0.9rem; line-height: 1.5;">
+                        Dapatkan rekomendasi AI untuk musik latar (Layer 2) dan efek suara (Layer 3).
+                    </p>
+
+                    <!-- Layer 2: Backsound -->
+                    <div class="form-group" style="border-top: none; margin-top: 0; padding-top: 0;">
+                        <label for="musicMoodInput" class="font-bold text-lg mb-2 block">Layer 2: Rekomendasi Backsound</label>
+                        <p class="helper-text mb-3">Masukkan *mood* atau *genre* (mis: ceria, korporat).</p>
+                        <input type="text" id="musicMoodInput" placeholder="Contoh: Musik pop yang ceria dan upbeat">
+                        <button type="button" class="btn-secondary" id="recommendMusicBtn" style="margin-top: 1rem; width: 100%; justify-content: center;">
+                            <i class="fas fa-music"></i>
+                            Dapatkan Rekomendasi Musik
+                        </button>
+                        <div id="musicLoading" class="loading-inline"><i class="fas fa-spinner fa-spin"></i> AI sedang mencari rekomendasi...</div>
+                        <div id="musicError" class="error-message" style="display: none;"></div>
+                        <div id="musicRecommendation" class="recommendation-box"></div>
+                    </div>
+
+                    <!-- Layer 3: SFX -->
+                    <div class="form-group" style="margin-top: 2rem; border-top: 1px dashed var(--color-border); padding-top: 1.5rem;">
+                        <label class="font-bold text-lg mb-2 block">Layer 3: Rekomendasi Efek Suara (SFX)</label>
+                        <p class="helper-text mb-3">AI akan menganalisis naskah Anda dari Langkah 5.</p>
+                        <button type="button" class="btn-secondary" id="recommendSfxBtn" style="width: 100%; justify-content: center;">
+                            <i class="fas fa-magic"></i>
+                            Rekomendasikan SFX dari Naskah
+                        </button>
+                        <div id="sfxLoading" class="loading-inline"><i class="fas fa-spinner fa-spin"></i> AI sedang menganalisis naskah...</div>
+                        <div id="sfxError" class="error-message" style="display: none;"></div>
+                        <div id="sfxRecommendation" class="recommendation-box"></div>
+                    </div>
+                </div>
+
+            </div>
+
+        </div> <!-- end feature-layout -->
+    </main>
+</div>
+
+<script src="js/navbar.js"></script>
+<script>
+    loadNavbar('audio2video');
+
+    // Cache Elemen
+    const platformSelect = document.getElementById('platformSelect');
+    const durationSelect = document.getElementById('durationSelect'); // **BARU**: Cache durasi
+    const productImageInput = document.getElementById('productImageInput');
+    const modelImageInput = document.getElementById('modelImageInput');
+    const generateScriptButton = document.getElementById('generateScriptButton');
+    const scriptOutput = document.getElementById('scriptOutput');
+    const voiceSelect = document.getElementById('voiceSelect');
+    const generateVoiceButton = document.getElementById('generateVoiceButton');
+
+    const loading = document.getElementById('loading');
+    const errorMessage = document.getElementById('errorMessage');
+    const audioPlaceholder = document.getElementById('audioPlaceholder');
+    const audioPlayer = document.getElementById('audioPlayer');
+    const downloadAudioBtn = document.getElementById('downloadAudioBtn');
+
+    // Cache Elemen untuk Rekomendasi
+    const musicMoodInput = document.getElementById('musicMoodInput');
+    const recommendMusicBtn = document.getElementById('recommendMusicBtn');
+    const musicLoading = document.getElementById('musicLoading');
+    const musicError = document.getElementById('musicError');
+    const musicRecommendation = document.getElementById('musicRecommendation');
+
+    const recommendSfxBtn = document.getElementById('recommendSfxBtn');
+    const sfxLoading = document.getElementById('sfxLoading');
+    const sfxError = document.getElementById('sfxError');
+    const sfxRecommendation = document.getElementById('sfxRecommendation');
+
+    // --- Variabel Global ---
+    let productBase64 = null;
+    let modelBase64 = null;
+    let currentAudioBlobUrl = null;
+    let cleanVoiceoverScript = null;
+
+    // === FUNGSI KONVERSI AUDIO (PENTING) ===
+    function base64ToArrayBuffer(base64) {
+        const binaryString = window.atob(base64);
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        return bytes.buffer;
+    }
+
+    function pcmToWav(pcmData, sampleRate) {
+        const pcm16 = new Int16Array(pcmData);
+        const numChannels = 1;
+        const bitsPerSample = 16;
+        const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+        const blockAlign = numChannels * (bitsPerSample / 8);
+
+        const dataSize = pcm16.length * (bitsPerSample / 8);
+        const chunkSize = 36 + dataSize;
+        const buffer = new ArrayBuffer(44 + dataSize);
+        const view = new DataView(buffer);
+
+        writeString(view, 0, 'RIFF');
+        view.setUint32(4, chunkSize, true);
+        writeString(view, 8, 'WAVE');
+        writeString(view, 12, 'fmt ');
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true);
+        view.setUint16(22, numChannels, true);
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, byteRate, true);
+        view.setUint16(32, blockAlign, true);
+        view.setUint16(34, bitsPerSample, true);
+        writeString(view, 36, 'data');
+        view.setUint32(40, dataSize, true);
+
+        let offset = 44;
+        for (let i = 0; i < pcm16.length; i++, offset += 2) {
+            view.setInt16(offset, pcm16[i], true);
+        }
+
+        return new Blob([view], { type: 'audio/wav' });
+    }
+
+    function writeString(view, offset, string) {
+        for (let i = 0; i < string.length; i++) {
+            view.setUint8(offset + i, string.charCodeAt(i));
+        }
+    }
+
+    // Konverter Markdown Sederhana ke HTML
+    function markdownToHtml(text) {
+        return text
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/-\s(.*?)(?:\n|$)/g, '<li>$1</li>')
+            .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
+            .replace(/\n\n/g, '<p>')
+            .replace(/\n/g, '<br>');
+    }
+
+    // === FUNGSI HELPER LAINNYA ===
+
+    function fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = error => reject(error);
+        });
+    }
+
+    function checkGenerateScriptButtonState() {
+        generateScriptButton.disabled = !(productBase64 && modelBase64);
+    }
+
+    async function handleFileSelect(event, previewElId, labelElId, storageVar) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const preview = document.getElementById(previewElId);
+        const label = document.getElementById(labelElId);
+
+        try {
+            const dataUrl = await fileToBase64(file);
+            preview.src = dataUrl;
+            preview.style.display = 'block';
+            label.querySelector('p').textContent = file.name;
+
+            const base64Data = dataUrl.split(',')[1];
+
+            if (storageVar === 'product') {
+                productBase64 = base64Data;
+            } else if (storageVar === 'model') {
+                modelBase64 = base64Data;
+            }
+            checkGenerateScriptButtonState();
+        } catch (error) {
+            console.error("Error reading file:", error);
+            errorMessage.textContent = "Gagal membaca file: " + error.message;
+            errorMessage.style.display = 'block';
+        }
+    }
+
+
+    // === EVENT LISTENERS ===
+
+    productImageInput.addEventListener('change', (e) => handleFileSelect(e, 'productImagePreview', 'productUploadLabel', 'product'));
+    modelImageInput.addEventListener('change', (e) => handleFileSelect(e, 'modelImagePreview', 'modelUploadLabel', 'model'));
+
+    scriptOutput.addEventListener('input', () => {
+        // Tombol VO hanya aktif jika naskah bersih ada
+        generateVoiceButton.disabled = !cleanVoiceoverScript;
+    });
+
+    // Handler Tombol "Generate Script" (Langkah 4)
+    generateScriptButton.addEventListener('click', async () => {
+        const platform = platformSelect.value;
+        const duration = durationSelect.value; // **BARU**: Ambil nilai durasi
+        if (!productBase64 || !modelBase64) return;
+
+        loading.style.display = 'block';
+        loading.querySelector('p').innerHTML = '<i class="fas fa-spinner fa-spin"></i> AI sedang menganalisis & menulis naskah...';
+        errorMessage.style.display = 'none';
+        generateScriptButton.disabled = true;
+        generateVoiceButton.disabled = true;
+        scriptOutput.disabled = true;
+        cleanVoiceoverScript = null;
+
+        try {
+            const response = await fetch('http://localhost:5000/api/generate-audio-script', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    productBase64: productBase64,
+                    modelBase64: modelBase64,
+                    platform: platform,
+                    duration: duration // **BARU**: Kirim durasi ke backend
+                })
+            });
+            const data = await response.json();
+
+            if (data.success && data.data.scriptData) {
+                const scriptData = data.data.scriptData;
+
+                scriptOutput.value = scriptData.fullScript;
+                cleanVoiceoverScript = scriptData.voiceoverScript;
+
+                scriptOutput.disabled = true; // **PERUBAHAN**: Tetap buat read-only
+                generateVoiceButton.disabled = false;
+            } else {
+                errorMessage.textContent = 'Gagal generate naskah: ' + (data.error || 'Respon AI tidak valid.');
+                errorMessage.style.display = 'block';
+            }
+        } catch (error) {
+            errorMessage.textContent = 'Gagal terhubung ke server (Script): ' + error.message;
+            errorMessage.style.display = 'block';
+        } finally {
+            loading.style.display = 'none';
+            generateScriptButton.disabled = false;
+        }
+    });
+
+    // Handler Tombol "Generate Voiceover" (Langkah 7)
+    generateVoiceButton.addEventListener('click', async () => {
+        const scriptToSpeak = cleanVoiceoverScript;
+        const voice = voiceSelect.value;
+
+        if (!scriptToSpeak) {
+            errorMessage.textContent = 'Naskah bersih tidak ditemukan. Coba generate script lagi.';
+            errorMessage.style.display = 'block';
+            return;
+        }
+
+        loading.style.display = 'block';
+        loading.querySelector('p').innerHTML = '<i class="fas fa-spinner fa-spin"></i> AI sedang membuat suara...';
+        errorMessage.style.display = 'none';
+        generateVoiceButton.disabled = true;
+
+        audioPlayer.style.display = 'none';
+        audioPlaceholder.style.display = 'flex';
+        downloadAudioBtn.style.display = 'none';
+        if (currentAudioBlobUrl) {
+            URL.revokeObjectURL(currentAudioBlobUrl);
+            currentAudioBlobUrl = null;
+        }
+
+        try {
+            const response = await fetch('http://localhost:5000/api/generate-voiceover', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ script: scriptToSpeak, voiceName: voice })
+            });
+            const data = await response.json();
+
+            if (data.success && data.data.audioBase64 && data.data.sampleRate) {
+                const pcmBuffer = base64ToArrayBuffer(data.data.audioBase64);
+                const pcmData = new Int16Array(pcmBuffer);
+                const wavBlob = pcmToWav(pcmData, data.data.sampleRate);
+
+                currentAudioBlobUrl = URL.createObjectURL(wavBlob);
+
+                audioPlayer.src = currentAudioBlobUrl;
+                audioPlayer.style.display = 'block';
+                audioPlaceholder.style.display = 'none';
+
+                downloadAudioBtn.href = currentAudioBlobUrl;
+                downloadAudioBtn.style.display = 'inline-flex';
+
+            } else {
+                errorMessage.textContent = 'Gagal generate suara: ' + (data.error || 'Respon AI tidak valid.');
+                errorMessage.style.display = 'block';
+            }
+        } catch (error) {
+            errorMessage.textContent = 'Gagal terhubung ke server (Audio): ' + error.message;
+            errorMessage.style.display = 'block';
+        } finally {
+            loading.style.display = 'none';
+            generateVoiceButton.disabled = false;
+        }
+    });
+
+    // Handler Tombol "Rekomendasi Musik" (Langkah 8 - Layer 2)
+    recommendMusicBtn.addEventListener('click', async () => {
+        const mood = musicMoodInput.value.trim();
+        const scriptContext = scriptOutput.value.trim();
+
+        if (!mood) {
+            musicError.textContent = 'Silakan masukkan mood atau genre musik terlebih dahulu.';
+            musicError.style.display = 'block';
+            return;
+        }
+
+        musicLoading.style.display = 'flex';
+        musicError.style.display = 'none';
+        musicRecommendation.style.display = 'none';
+        recommendMusicBtn.disabled = true;
+
+        try {
+            const response = await fetch('http://localhost:5000/api/recommend-music', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mood: mood, script: scriptContext })
+            });
+            const data = await response.json();
+
+            if (data.success && data.data.recommendation) {
+                musicRecommendation.innerHTML = markdownToHtml(data.data.recommendation);
+                musicRecommendation.style.display = 'block';
+            } else {
+                musicError.textContent = 'Gagal mendapat rekomendasi musik: ' + (data.error || 'Respon AI tidak valid.');
+                musicError.style.display = 'block';
+            }
+        } catch (error) {
+            musicError.textContent = 'Gagal terhubung ke server (Musik): ' + error.message;
+            musicError.style.display = 'block';
+        } finally {
+            musicLoading.style.display = 'none';
+            recommendMusicBtn.disabled = false;
+        }
+    });
+
+    // Handler Tombol "Rekomendasi SFX" (Langkah 8 - Layer 3)
+    recommendSfxBtn.addEventListener('click', async () => {
+        const scriptToAnalyze = scriptOutput.value.trim();
+
+        if (!scriptToAnalyze) {
+            sfxError.textContent = 'Naskah (Langkah 5) harus ada untuk dianalisis.';
+            sfxError.style.display = 'block';
+            return;
+        }
+
+        sfxLoading.style.display = 'flex';
+        sfxError.style.display = 'none';
+        sfxRecommendation.style.display = 'none';
+        recommendSfxBtn.disabled = true;
+
+        try {
+            const response = await fetch('http://localhost:5000/api/recommend-sfx', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ script: scriptToAnalyze })
+            });
+            const data = await response.json();
+
+            if (data.success && data.data.recommendation) {
+                sfxRecommendation.innerHTML = markdownToHtml(data.data.recommendation);
+                sfxRecommendation.style.display = 'block';
+            } else {
+                sfxError.textContent = 'Gagal mendapat rekomendasi SFX: ' + (data.error || 'Respon AI tidak valid.');
+                sfxError.style.display = 'block';
+            }
+        } catch (error) {
+            sfxError.textContent = 'Gagal terhubung ke server (SFX): ' + error.message;
+            sfxError.style.display = 'block';
+        } finally {
+            sfxLoading.style.display = 'none';
+            recommendSfxBtn.disabled = false;
+        }
+    });
+
+</script>
+</body>
+</html>

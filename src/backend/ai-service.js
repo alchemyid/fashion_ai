@@ -11,7 +11,7 @@ const IMAGEN_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/
 const GEMINI_IMAGE_EDIT_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent?key=${API_KEY}`;
 // URL untuk FITUR 3 & 4 (Analisis Teks/Vision)
 const GEMINI_TEXT_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`;
-// **BARU**: URL untuk FITUR 4 (Text-to-Speech)
+// URL untuk FITUR 4 (Text-to-Speech)
 const GEMINI_TTS_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${API_KEY}`;
 
 
@@ -362,13 +362,14 @@ async function generateVideoFromImage(imageBase64, prompt) {
 
 
 /**
- * **BARU**: FITUR 4 (Langkah A): Generate Audio Script (Vision-to-Text)
+ * **PERUBAHAN**: FITUR 4 (Langkah A): Generate Audio Script (Vision-to-Text)
  * @param {string} productBase64 - Gambar produk bersih.
  * @param {string} modelBase64 - Gambar model final.
  * @param {string} platform - Target platform (tiktok, instagram, shopee).
- * @returns {Promise<{success: boolean, script: string, error: string}>}
+ * @param {string} duration - Durasi yang diinginkan (misal: "15 detik").
+ * @returns {Promise<{success: boolean, scriptData: object, error: string}>}
  */
-async function generateAudioScript(productBase64, modelBase64, platform) {
+async function generateAudioScript(productBase64, modelBase64, platform, duration) {
     if (!API_KEY) {
         return { success: false, error: "API Key tidak ditemukan." };
     }
@@ -376,31 +377,35 @@ async function generateAudioScript(productBase64, modelBase64, platform) {
     let platformInstruction = "";
     switch(platform) {
         case "tiktok":
-            platformInstruction = "Buat script yang sangat cepat (15 detik), trendy, dan dimulai dengan hook yang kuat. Gunakan bahasa gaul.";
+            platformInstruction = "Gaya: Trendy, hook kuat, bahasa gaul.";
             break;
         case "instagram":
-            platformInstruction = "Buat script yang estetik (30 detik), cinematic, dan bercerita. Fokus pada 'vibe' dan 'feel' dari produk dan model.";
+            platformInstruction = "Gaya: Estetik, cinematic, storytelling, fokus pada 'vibe'.";
             break;
         case "youtube":
-            platformInstruction = "Buat script yang informatif (30 detik), jelas, dan profesional. Fokus pada fitur dan keunggulan produk.";
+            platformInstruction = "Gaya: Informatif, jelas, profesional, fokus fitur.";
             break;
         case "shopee":
-            platformInstruction = "Buat script yang direct-to-sales (20 detik), fokus pada CTA (Call to Action), harga, dan promo. Sangat persuasif.";
+            platformInstruction = "Gaya: Direct-to-sales, persuasif, fokus CTA dan promo.";
             break;
         default:
-            platformInstruction = "Buat script iklan 20 detik yang general.";
+            platformInstruction = "Gaya: Iklan general.";
     }
 
+    // --- PERUBAHAN SYSTEM PROMPT ---
     const systemPrompt = `
-You are an expert E-commerce Scriptwriter. Your ONLY task is to analyze the user's images (a product image and a model image) and their target platform, then write a compelling, short video script.
+You are an expert E-commerce Scriptwriter. Your task is to analyze user images and generate a video script based on platform and duration.
+You MUST return your answer as a single, valid JSON object.
 
---- ANALYSIS ---
-1.  **Analyze Product Image**: Identify the key features, material, and style of the product.
-2.  **Analyze Model Image**: Identify the 'vibe', style, and context (e.g., casual, elegant, indoor, outdoor).
-3.  **Analyze Platform**: Adapt your writing style based on the platform's requirements.
+The JSON object must have two keys:
+1. "fullScript": A string containing the complete shooting script, including VISUAL cues, AUDIO cues, and VOICEOVER lines (formatted nicely for a human director).
+2. "voiceoverScript": A string containing ONLY the voiceover lines, concatenated together, ready for a Text-to-Speech engine. All visual/audio cues (VISUAL:, AUDIO:, VOICEOVER:, [SCENE START], dll) harus dihilangkan.
 
---- OUTPUT ---
-You MUST return ONLY the final script text. Do not include "Berikut scriptnya:" or any other pre-amble. Just the script.
+Example JSON output:
+{
+  "fullScript": "0:00-0:05 | VISUAL: Close up pada produk.\nVOICEOVER: Lihat produk luar biasa ini.\n0:05-0:10 | VISUAL: Model tersenyum.\nVOICEOVER: Ini akan mengubah hidup Anda.",
+  "voiceoverScript": "Lihat produk luar biasa ini. Ini akan mengubah hidup Anda."
+}
 `.trim();
 
     // Bangun payload multimodal
@@ -410,6 +415,7 @@ You MUST return ONLY the final script text. Do not include "Berikut scriptnya:" 
                 role: "user",
                 parts: [
                     { "text": `Platform Target: ${platformInstruction}` },
+                    { "text": `**DURASI WAJIB**: Naskah HARUS pas untuk **${duration}**.`},
                     { "text": "--- GAMBAR PRODUK (Fokus di sini) ---" },
                     {
                         "inlineData": {
@@ -425,25 +431,41 @@ You MUST return ONLY the final script text. Do not include "Berikut scriptnya:" 
                         }
                     },
                     { "text": "--- TUGAS ANDA ---" },
-                    { "text": "Tulis naskah iklan 15-30 detik yang mempromosikan GAMBAR PRODUK dengan gaya dari GAMBAR MODEL, sesuai target platform. Hanya kembalikan naskahnya." }
+                    { "text": `Tulis naskah iklan yang mempromosikan GAMBAR PRODUK dengan gaya dari GAMBAR MODEL, sesuai target platform dan durasi. Kembalikan HANYA objek JSON yang valid.` }
                 ]
             }
         ],
         systemInstruction: {
             parts: [{ "text": systemPrompt }]
+        },
+        generationConfig: {
+            responseMimeType: "application/json"
         }
     };
 
     try {
-        // Panggil model Vision (sama dengan yang dipakai di Fitur 3)
         const result = await fetchWithRetry(GEMINI_TEXT_API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
+
         if (result.candidates && result.candidates[0]) {
-            const text = result.candidates[0].content.parts[0].text;
-            return { success: true, script: text.trim() };
+            const jsonText = result.candidates[0].content.parts[0].text;
+
+            let scriptData;
+            try {
+                scriptData = JSON.parse(jsonText);
+            } catch (parseError) {
+                console.error("Gagal mem-parse JSON dari AI:", jsonText);
+                throw new Error("Respons AI bukan JSON yang valid.");
+            }
+
+            if (!scriptData || !scriptData.fullScript || typeof scriptData.voiceoverScript === 'undefined') {
+                throw new Error("JSON respons dari AI tidak memiliki kunci 'fullScript' atau 'voiceoverScript'.");
+            }
+
+            return { success: true, scriptData: scriptData };
         } else {
             throw new Error("API (Script Gen) tidak mengembalikan 'candidates'.");
         }
@@ -456,17 +478,13 @@ You MUST return ONLY the final script text. Do not include "Berikut scriptnya:" 
 
 /**
  * FITUR 4 (Langkah B): Generate Voiceover (Text-to-Speech)
- * @param {string} script - Naskah final.
- * @param {string} voiceName - Nama suara (misal: "Kore", "Puck").
- * @returns {Promise<{success: boolean, audioBase64: string, sampleRate: number, error: string}>}
  */
 async function generateVoiceover(script, voiceName) {
     if (!API_KEY) {
         return { success: false, error: "API Key tidak ditemukan." };
     }
 
-    // Perintah untuk nada (bisa kita kembangkan nanti)
-    const ttsPrompt = `Say in an engaging, commercial tone: ${script}`;
+    const ttsPrompt = `Ucapkan dengan nada komersial yang engaging: ${script}`;
 
     const payload = {
         contents: [{
@@ -484,7 +502,6 @@ async function generateVoiceover(script, voiceName) {
     };
 
     try {
-        // Panggil API TTS
         const result = await fetchWithRetry(GEMINI_TTS_API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -493,12 +510,14 @@ async function generateVoiceover(script, voiceName) {
 
         const part = result?.candidates?.[0]?.content?.parts?.[0];
         const audioData = part?.inlineData?.data;
-        const mimeType = part?.inlineData?.mimeType; // Ini akan berisi 'audio/L16;rate=24000'
+        const mimeType = part?.inlineData?.mimeType;
 
         if (audioData && mimeType && mimeType.startsWith("audio/")) {
-            // Ekstrak sample rate dari mimeType
-            const sampleRate = parseInt(mimeType.match(/rate=(\d+)/)[1], 10);
-
+            const rateMatch = mimeType.match(/rate=(\d+)/);
+            if (!rateMatch) {
+                throw new Error("Tidak dapat menemukan sample rate di mimeType: " + mimeType);
+            }
+            const sampleRate = parseInt(rateMatch[1], 10);
             return {
                 success: true,
                 audioBase64: audioData,
@@ -517,6 +536,96 @@ async function generateVoiceover(script, voiceName) {
 }
 
 
+/**
+ * FITUR 4 (Langkah C): Rekomendasi Musik Latar (Text-to-Text)
+ */
+async function recommendMusic(mood, script) {
+    if (!API_KEY) {
+        return { success: false, error: "API Key tidak ditemukan." };
+    }
+
+    const systemPrompt = "Anda adalah seorang Produser Musik profesional. Tugas Anda adalah merekomendasikan musik latar (backsound) untuk sebuah video.";
+    const userPrompt = `
+        Klien membutuhkan musik untuk video mereka.
+        Mood/Genre yang diinginkan: "${mood}"
+        Konteks skrip narasi video (untuk referensi tempo dan suasana): "${script || 'Tidak ada skrip diberikan, fokus pada mood.'}"
+
+        Berikan rekomendasi Anda dalam format yang jelas. Jelaskan dalam Bahasa Indonesia:
+        - **Deskripsi Trek:** Jelaskan seperti apa musiknya (instrumen, tempo, nuansa).
+        - **Penempatan:** Di mana musik ini harus digunakan (misal: "di seluruh video", "hanya di intro").
+        - **Mengapa:** Jelaskan mengapa pilihan ini cocok.
+    `;
+
+    const payload = {
+        contents: [{ parts: [{ text: userPrompt }] }],
+        systemInstruction: { parts: [{ text: systemPrompt }] }
+    };
+
+    try {
+        const result = await fetchWithRetry(GEMINI_TEXT_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (result.candidates && result.candidates[0]) {
+            const text = result.candidates[0].content.parts[0].text;
+            return { success: true, recommendation: text.trim() };
+        } else {
+            throw new Error("API (Recommend Music) tidak mengembalikan 'candidates'.");
+        }
+    } catch (error) {
+        console.error('AI Recommend Music Error:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * FITUR 4 (Langkah D): Rekomendasi Efek Suara (Text-to-Text)
+ */
+async function recommendSfx(script) {
+    if (!API_KEY) {
+        return { success: false, error: "API Key tidak ditemukan." };
+    }
+
+    const systemPrompt = "Anda adalah seorang Sound Designer (Desainer Suara) profesional. Tugas Anda adalah menganalisis skrip video dan merekomendasikan efek suara (SFX) untuk membuatnya lebih hidup.";
+    const userPrompt = `
+        Analisis skrip berikut:
+        ---
+        ${script}
+        ---
+
+        Buatlah 'cue sheet' (daftar isyarat) berisi rekomendasi SFX. Jelaskan dengan spesifik dalam Bahasa Indonesia:
+        - **Efek Suara (SFX):** Suara apa yang dibutuhkan (misal: "Klik Mouse", "Transisi Whoosh").
+        - **Pemicu (Cue):** Kapan suara itu harus muncul (kutip bagian skrip atau jelaskan adegannya).
+        - **Tujuan:** Mengapa SFX ini penting (misal: "menegaskan aksi", "transisi antar adegan").
+
+        Jika tidak ada SFX yang relevan, katakan demikian.
+    `;
+
+    const payload = {
+        contents: [{ parts: [{ text: userPrompt }] }],
+        systemInstruction: { parts: [{ text: systemPrompt }] }
+    };
+
+    try {
+        const result = await fetchWithRetry(GEMINI_TEXT_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (result.candidates && result.candidates[0]) {
+            const text = result.candidates[0].content.parts[0].text;
+            return { success: true, recommendation: text.trim() };
+        } else {
+            throw new Error("API (Recommend SFX) tidak mengembalikan 'candidates'.");
+        }
+    } catch (error) {
+        console.error('AI Recommend SFX Error:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+
 module.exports = {
     generateImage,
     generateByReference,
@@ -524,6 +633,8 @@ module.exports = {
     generateModelFromProduct,
     generateVideoPrompt,
     generateVideoFromImage,
-    generateAudioScript,    // Ekspor fungsi
-    generateVoiceover       // Ekspor fungsi
+    generateAudioScript,
+    generateVoiceover,
+    recommendMusic,
+    recommendSfx
 };

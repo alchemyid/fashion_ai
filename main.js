@@ -147,10 +147,7 @@ function startAPIServer() {
             if (!imageBase64 || !prompt) {
                 return res.status(400).json({ success: false, error: 'imageBase64 and prompt are required.' });
             }
-            // Panggil fungsi placeholder
             const result = await aiService.generateVideoFromImage(imageBase64, prompt);
-
-            // Ini akan selalu mengembalikan 'success: false'
             res.json(result);
 
         } catch (error) {
@@ -158,18 +155,21 @@ function startAPIServer() {
         }
     });
 
-    // **PERUBAHAN**: Endpoint FITUR 4 (Langkah A - Vision-to-Script)
+    // Endpoint FITUR 4 (Langkah A - Vision-to-Script)
     apiApp.post('/api/generate-audio-script', async (req, res) => {
         try {
-            // **PERUBAHAN**: Terima gambar, bukan deskripsi
-            const { productBase64, modelBase64, platform } = req.body;
-            if (!productBase64 || !modelBase64 || !platform) {
-                return res.status(400).json({ success: false, error: 'productBase64, modelBase64, and platform are required.' });
+            // **PERUBAHAN**: Ambil 'duration'
+            const { productBase64, modelBase64, platform, duration } = req.body;
+            // **PERUBAHAN**: Validasi 'duration'
+            if (!productBase64 || !modelBase64 || !platform || !duration) {
+                return res.status(400).json({ success: false, error: 'productBase64, modelBase64, platform, and duration are required.' });
             }
-            // **PERUBAHAN**: Kirim gambar ke service
-            const result = await aiService.generateAudioScript(productBase64, modelBase64, platform);
+
+            // **PERUBAHAN**: Kirim 'duration' ke service
+            const result = await aiService.generateAudioScript(productBase64, modelBase64, platform, duration);
+
             if (result.success) {
-                res.json({ success: true, data: { script: result.script } });
+                res.json({ success: true, data: { scriptData: result.scriptData } });
             } else {
                 res.status(500).json({ success: false, error: result.error });
             }
@@ -187,7 +187,6 @@ function startAPIServer() {
             }
             const result = await aiService.generateVoiceover(script, voiceName);
             if (result.success) {
-                // Kirim audio Base64 dan sampleRate
                 res.json({
                     success: true,
                     data: {
@@ -195,6 +194,42 @@ function startAPIServer() {
                         sampleRate: result.sampleRate
                     }
                 });
+            } else {
+                res.status(500).json({ success: false, error: result.error });
+            }
+        } catch (error) {
+            res.status(500).json({ success: false, error: error.message });
+        }
+    });
+
+    // Endpoint FITUR 4 (Langkah C - Rekomendasi Musik)
+    apiApp.post('/api/recommend-music', async (req, res) => {
+        try {
+            const { mood, script } = req.body;
+            if (!mood) {
+                return res.status(400).json({ success: false, error: 'Mood harus diisi.' });
+            }
+            const result = await aiService.recommendMusic(mood, script);
+            if (result.success) {
+                res.json({ success: true, data: { recommendation: result.recommendation } });
+            } else {
+                res.status(500).json({ success: false, error: result.error });
+            }
+        } catch (error) {
+            res.status(500).json({ success: false, error: error.message });
+        }
+    });
+
+    // Endpoint FITUR 4 (Langkah D - Rekomendasi SFX)
+    apiApp.post('/api/recommend-sfx', async (req, res) => {
+        try {
+            const { script } = req.body;
+            if (!script) {
+                return res.status(400).json({ success: false, error: 'Naskah (script) harus ada untuk dianalisis.' });
+            }
+            const result = await aiService.recommendSfx(script);
+            if (result.success) {
+                res.json({ success: true, data: { recommendation: result.recommendation } });
             } else {
                 res.status(500).json({ success: false, error: result.error });
             }
@@ -226,7 +261,6 @@ function createWindow() {
 
     mainWindow.loadFile('src/renderer/index.html');
 
-    // Selalu buka DevTools jika tidak di production
     if (process.env.NODE_ENV !== 'production') {
         mainWindow.webContents.openDevTools({ mode: 'detach' });
     }
