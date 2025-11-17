@@ -16,7 +16,7 @@
             margin-top: 1.5rem; font-size: 0.9rem;
         }
 
-        /* **BARU**: Menggunakan style dari Fitur 4 */
+        /* Style dari Fitur 4 */
         .upload-grid-audio {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -56,19 +56,33 @@
         .btn-secondary:hover { background-color: #2b6cb0; }
         .btn-secondary:disabled { background-color: #9ca3af; cursor: not-allowed; }
 
+        .form-group select {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            border: 2px solid var(--color-border);
+            border-radius: var(--border-radius);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.95rem;
+            background-color: white;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+            background-position: right 0.75rem center;
+            background-repeat: no-repeat;
+            background-size: 1.25em;
+        }
+
         /* Layout 2 Kolom */
         .feature-layout {
             display: grid;
-            grid-template-columns: 1fr; /* Default 1 kolom di mobile */
+            grid-template-columns: 1fr;
             gap: 2rem;
         }
         @media (min-width: 1024px) {
             .feature-layout {
-                grid-template-columns: 1fr 1fr; /* 2 kolom di desktop */
+                grid-template-columns: 1fr 1fr;
             }
         }
 
-        /* Kolom Hasil (Kanan) */
         .result-column {
             background: #f9fafb;
             border: 1px solid var(--color-border);
@@ -78,7 +92,6 @@
             top: 2rem;
         }
 
-        /* Box untuk hasil video (placeholder) */
         #videoResultDisplay {
             width: 100%;
             aspect-ratio: 1 / 1;
@@ -119,47 +132,70 @@
             <div class="controls-column">
                 <form id="videoForm" class="form-card" style="margin: 0;">
 
-                    <!-- **PERUBAHAN**: Langkah 1 & 2: Upload Gambar -->
+                    <!-- Langkah 1: Platform -->
                     <div class="form-group">
-                        <label class="font-bold text-xl mb-4 block">Langkah 1 & 2: Upload Aset</label>
+                        <label for="platformSelect" class="font-bold text-xl mb-4 block">Langkah 1: Target Platform</label>
+                        <p class="helper-text">AI akan menyesuaikan gaya naskah video.</p>
+                        <select id="platformSelect">
+                            <option value="tiktok">TikTok (Cepat, Trendy)</option>
+                            <option value="instagram" selected>Instagram Reels (Estetik, Cinematic)</option>
+                            <option value="youtube">YouTube Shorts (Informatif)</option>
+                            <option value="shopee">E-Commerce (Sales, Promo)</option>
+                        </select>
+                    </div>
+
+                    <!-- **PERUBAHAN**: Langkah 2: Durasi (Kelipatan 8s) -->
+                    <div class="form-group">
+                        <label for="durationSelect" class="font-bold text-xl mb-4 block">Langkah 2: Tentukan Durasi VEO</label>
+                        <p class="helper-text">Pilih durasi target (VEO akan menghasilkan per 8 detik).</p>
+                        <select id="durationSelect">
+                            <option value="8 detik">8 Detik (1 Klip VEO)</option>
+                            <option value="16 detik" selected>16 Detik (2 Klip VEO)</option>
+                            <option value="24 detik">24 Detik (3 Klip VEO)</option>
+                            <option value="32 detik">32 Detik (4 Klip VEO)</option>
+                            <option value="40 detik">40 Detik (5 Klip VEO)</option>
+                        </select>
+                    </div>
+
+                    <!-- Langkah 3: Upload Aset -->
+                    <div class="form-group">
+                        <label class="font-bold text-xl mb-4 block">Langkah 3: Upload Aset</label>
                         <p class="helper-text">Upload gambar produk (bersih) dan gambar model (final).</p>
                         <div class="upload-grid-audio">
-                            <!-- Upload Produk -->
                             <label for="productImageInput" class="upload-box" id="productUploadLabel">
                                 <i class="fas fa-tshirt"></i>
-                                <p>1. Upload Produk Bersih</p>
+                                <p>Upload Produk Bersih</p>
                                 <img id="productImagePreview" class="preview-img-audio" alt="Preview Produk">
                                 <input type="file" id="productImageInput" accept="image/png, image/jpeg" required>
                             </label>
-                            <!-- Upload Model -->
                             <label for="modelImageInput" class="upload-box" id="modelUploadLabel">
                                 <i class="fas fa-user"></i>
-                                <p>2. Upload Model Final</p>
+                                <p>Upload Model Final</p>
                                 <img id="modelImagePreview" class="preview-img-audio" alt="Preview Model">
                                 <input type="file" id="modelImageInput" accept="image/png, image/jpeg" required>
                             </label>
                         </div>
                     </div>
 
-                    <!-- **PERUBAHAN**: Langkah 3: Tombol Analisis AI -->
+                    <!-- Langkah 4: Tombol Analisis AI -->
                     <div class="form-group" style="text-align: center; margin-top: 2rem;">
                         <button type="button" class="btn-secondary" id="analyzeButton" disabled>
                             <i class="fas fa-wand-magic-sparkles"></i>
-                            Langkah 3: Dapatkan Rekomendasi Prompt Video
+                            Langkah 4: Generate Veo Prompt (Visual + Audio)
                         </button>
                     </div>
 
-                    <!-- **PERUBAHAN**: Langkah 4: Prompt Teks (Bisa diedit) -->
+                    <!-- Langkah 5: Prompt Teks (Bisa diedit) -->
                     <div class="form-group">
-                        <label for="prompt" class="font-bold text-xl mb-4 block">Langkah 4: Edit Prompt Video (untuk VEO)</label>
-                        <p class="helper-text">AI akan merekomendasikan prompt di sini. Anda bisa mengubahnya.</p>
-                        <textarea id="prompt" name="prompt" placeholder="Rekomendasi prompt video akan muncul di sini setelah Langkah 3..." required disabled style="min-height: 150px;"></textarea>
+                        <label for="prompt" class="font-bold text-xl mb-4 block">Langkah 5: Edit Prompt Video (untuk VEO)</label>
+                        <p class="helper-text">AI akan merekomendasikan naskah sutradara lengkap di sini.</p>
+                        <textarea id="prompt" name="prompt" placeholder="Naskah sutradara (VISUAL + VOICEOVER) akan muncul di sini..." required disabled style="min-height: 180px;"></textarea>
                     </div>
 
-
+                    <!-- Langkah 6: Execute -->
                     <button type="submit" class="btn-execute" id="generateButton" disabled>
                         <i class="fas fa-video"></i>
-                        Langkah 5: Execute Video Generation (Placeholder)
+                        Langkah 6: Execute Video Generation (Placeholder)
                     </button>
                 </form>
             </div>
@@ -196,12 +232,14 @@
 <script>
     loadNavbar('image2video');
 
-    // **PERUBAHAN**: Variabel untuk dua gambar
+    // Variabel untuk dua gambar
     let productBase64 = null;
     let modelBase64 = null;
 
     // Cache Elemen
     const videoForm = document.getElementById('videoForm');
+    const platformSelect = document.getElementById('platformSelect');
+    const durationSelect = document.getElementById('durationSelect'); // **BARU**: Cache durasi
     const productImageInput = document.getElementById('productImageInput');
     const modelImageInput = document.getElementById('modelImageInput');
     const analyzeButton = document.getElementById('analyzeButton');
@@ -222,12 +260,12 @@
         });
     }
 
-    // **PERUBAHAN**: Cek status tombol
+    // Cek status tombol
     function checkAnalyzeButtonState() {
         analyzeButton.disabled = !(productBase64 && modelBase64);
     }
 
-    // **PERUBAHAN**: Fungsi helper untuk menampilkan preview
+    // Fungsi helper untuk menampilkan preview
     async function handleFileSelect(event, previewElId, labelElId, storageVar) {
         const file = event.target.files[0];
         if (!file) return;
@@ -255,39 +293,46 @@
         }
     }
 
-    // **PERUBAHAN**: Handler untuk upload file
+    // Handler untuk upload file
     productImageInput.addEventListener('change', (e) => handleFileSelect(e, 'productImagePreview', 'productUploadLabel', 'product'));
     modelImageInput.addEventListener('change', (e) => handleFileSelect(e, 'modelImagePreview', 'modelUploadLabel', 'model'));
 
 
-    // Handler Tombol ANALISIS (Langkah 3)
+    // Handler Tombol ANALISIS (Langkah 4)
     analyzeButton.addEventListener('click', async () => {
         if (!productBase64 || !modelBase64) return;
 
+        const platform = platformSelect.value;
+        const duration = durationSelect.value; // **PERUBAHAN**: Mengambil durasi 8s, 16s, dll.
+
         loading.style.display = 'block';
-        loading.querySelector('p').innerHTML = '<i class="fas fa-spinner fa-spin"></i> AI sedang menganalisis gambar...';
+        loading.querySelector('p').innerHTML = '<i class="fas fa-spinner fa-spin"></i> AI sedang menganalisis & menulis naskah Veo...';
         errorMessage.style.display = 'none';
         analyzeButton.disabled = true;
         generateButton.disabled = true;
         promptInput.disabled = true;
+        promptInput.value = "";
 
         try {
-            // **PERUBAHAN**: Kirim kedua gambar
+            // **PERUBAHAN**: Memanggil endpoint yang benar
             const response = await fetch('http://localhost:5000/api/generate-video-prompt', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     productBase64: productBase64,
-                    modelBase64: modelBase64
+                    modelBase64: modelBase64,
+                    platform: platform,
+                    duration: duration // Mengirim durasi (misal: "16 detik")
                 })
             });
 
             const data = await response.json();
 
-            if (data.success && data.data.prompt) {
-                promptInput.value = data.data.prompt;
+            // **PERUBAHAN**: Respons sekarang adalah 'scriptData'
+            if (data.success && data.data.scriptData && data.data.scriptData.fullScript) {
+                promptInput.value = data.data.scriptData.fullScript;
                 promptInput.disabled = false;
-                generateButton.disabled = false; // Aktifkan Langkah 5
+                generateButton.disabled = false;
             } else {
                 errorMessage.textContent = 'Gagal menganalisis gambar: ' + (data.error || 'Respon AI tidak valid.');
                 errorMessage.style.display = 'block';
@@ -303,7 +348,7 @@
     });
 
 
-    // Handler Tombol EXECUTE (Langkah 5 - Placeholder)
+    // Handler Tombol EXECUTE (Langkah 6 - Placeholder)
     videoForm.addEventListener('submit', async (e) => {
         e.preventDefault();
 
@@ -321,7 +366,6 @@
         downloadVideoBtn.style.display = 'none';
 
         try {
-            // **PERUBAHAN**: Hanya kirim prompt, tidak perlu gambar lagi
             const response = await fetch('http://localhost:5000/api/generate-video-from-image', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -333,14 +377,9 @@
             const data = await response.json();
 
             if (data.success && data.data.videoBase64) {
-                // **LOGIKA JIKA API SUKSES** (Tidak akan terjadi sekarang)
-                const videoUrl = 'data:video/mp4;base64,' + data.data.videoBase64;
-                videoResultDisplay.innerHTML = `<video controls autoplay loop src="${videoUrl}"></video>`;
-                downloadVideoBtn.href = videoUrl;
-                downloadVideoBtn.style.display = 'inline-flex';
+                // ... (Logika jika sukses, tidak akan terjadi)
             } else {
-                // **LOGIKA PLACEHOLDER SAAT INI**
-                errorMessage.innerHTML = `<b>Fitur Dalam Pengembangan (VEO)</b><br>${data.error || 'API untuk Text-to-Video (Veo) belum tersedia.'}<br>Logika prompt Anda sudah benar, namun eksekusi video belum dapat dilakukan.`;
+                errorMessage.innerHTML = `<b>Fitur Dalam Pengembangan (VEO)</b><br>${data.error || 'API untuk Text-to-Video (Veo) belum tersedia.'}<br>Logika prompt Anda (naskah sutradara) sudah benar, namun eksekusi video belum dapat dilakukan.`;
                 errorMessage.style.display = 'block';
                 videoResultDisplay.innerHTML = '<div><i class="fas fa-video-slash"></i><p>Hasil Video Akan Muncul Disini</p></div>';
             }

@@ -54,44 +54,35 @@ async function fetchWithRetry(url, options, maxRetries = 3) {
 
 
 /**
- * **PERUBAHAN**: FITUR 1 (Teks): Generate by command
+ * FITUR 1 (Teks): Generate by command
  */
 async function generateImage(prompt, sampleCount = 1, isProductOnly = true, isConsistent = true) {
     if (!API_KEY) {
         return { success: false, error: "API Key tidak ditemukan. Pastikan GEMINI_API_KEY diatur di .env" };
     }
 
-    // **PERBAIKAN 1**: Batas sampleCount untuk imagen-4.0-generate-001 adalah 4.
     const safeSampleCount = Math.max(1, Math.min(parseInt(sampleCount, 10) || 1, 4));
 
-    // **PERBAIKAN 2 & 3**: Logika prompt dinamis 2-toggle
     let enhancedPrompt = "";
     let negative_prompt = "";
 
     if (isProductOnly) {
-        // T1-ON: Product Shot (No Model)
         enhancedPrompt = `(product photography:1.4), (e-commerce catalog shot:1.3), (white background:1.2), (no people:1.5), (no model:1.5), (a single item:1.3), ${prompt}`;
         negative_prompt = "text, words, watermark, logo, people, person, model, human, (multiple items:1.3), two items, collage, grid, multiple products";
 
         if (isConsistent) {
-            // T2-ON: Konsisten
             enhancedPrompt += ", (all images must show the exact same product design, same model of product)";
         } else {
-            // T2-OFF: Bervariasi
             enhancedPrompt += ", (show different designs and variations of the product, different styles)";
-            // Kita bisa sedikit melonggarkan negative prompt jika user ingin variasi
             negative_prompt = "text, words, watermark, logo, people, person, model, human, collage, grid";
         }
     } else {
-        // T1-OFF: Fashion Shot (With Model)
         enhancedPrompt = `Fashion photography, ultra detailed, cinematic light, high-end model, (a single subject:1.3), ${prompt}`;
         negative_prompt = "text, words, watermark, logo, blurry, distorted, bad anatomy, (multiple subjects:1.3), collage, grid, two people";
 
         if (isConsistent) {
-            // T2-ON: Konsisten
             enhancedPrompt += ", (the model must wear the exact same product design in all images)";
         } else {
-            // T2-OFF: Bervariasi
             enhancedPrompt += ", (show the model wearing different designs or variations of the product)";
         }
     }
@@ -102,8 +93,6 @@ async function generateImage(prompt, sampleCount = 1, isProductOnly = true, isCo
         outputMimeType: "image/png"
     };
 
-    // **DIHAPUS**: parameters.seed dihapus untuk memperbaiki Error 400
-
     const payload = {
         instances: {
             prompt: enhancedPrompt,
@@ -112,7 +101,7 @@ async function generateImage(prompt, sampleCount = 1, isProductOnly = true, isCo
         parameters: parameters
     };
 
-    console.log("Mengirim payload ke Imagen:", JSON.stringify(payload, null, 2)); // Log untuk debug
+    console.log("Mengirim payload ke Imagen:", JSON.stringify(payload, null, 2));
 
     try {
         const result = await fetchWithRetry(IMAGEN_API_URL, {
@@ -340,22 +329,36 @@ ${shotType.desc}
 
 
 /**
- * FITUR 3 (Langkah A): Generate Video Prompt (Multi-Image-to-Text)
+ * FITUR 3 (Langkah A): Generate VEO Prompt (8s)
  */
-async function generateVideoPrompt(productBase64, modelBase64) {
+async function generateVeoPrompt(productBase64, modelBase64, platform, duration) {
     if (!API_KEY) {
         return { success: false, error: "API Key tidak ditemukan." };
     }
+
+    let platformInstruction = "";
+    switch(platform) {
+        case "tiktok": platformInstruction = "Gaya: Trendy, hook kuat, bahasa gaul."; break;
+        case "instagram": platformInstruction = "Gaya: Estetik, cinematic, storytelling, fokus pada 'vibe'."; break;
+        case "youtube": platformInstruction = "Gaya: Informatif, jelas, profesional, fokus fitur."; break;
+        case "shopee": platformInstruction = "Gaya: Direct-to-sales, persuasif, fokus CTA dan promo."; break;
+        default: platformInstruction = "Gaya: Iklan general.";
+    }
+
+    // **PERUBAHAN**: System prompt sekarang mencontohkan blok 8 detik
     const systemPrompt = `
-You are an expert E-commerce Video Director. Your task is to analyze the user's images (a product and a model) and generate a compelling, detailed, multi-scene video prompt for a video generation AI like Veo.
---- RULES ---
-1.  **Output Format**: MUST be a single, detailed paragraph describing a sequence of shots.
-2.  **Incorporate Both Images**: You MUST describe a scene that features the **model** (from the model image) **wearing** or **using** the **product** (from the product image).
-3.  **Dynamic Motion**: Describe camera movements (zoom, pan, tilt), model actions (walking, turning, smiling), and environmental effects (light flickering, wind blowing).
-4.  **E-commerce Goal**: The prompt must be designed to showcase the product attractively in a 10-15 second video.
-5.  **Example**:
-    * **PROMPT**: "A cinematic close-up of a woman's feet walking on cobblestones, wearing the white sneakers. The camera tilts up to a medium shot, revealing the full outfit (white t-shirt, blue jeans) as she walks through a sunny European street. She smiles at the camera."
-    * **PROMPT**: "Extreme close-up on the green sandal, focusing on the texture. The camera pans out to show a model wearing the sandals, sitting on a beachside cafe chair, her feet gently tapping to music. Soft sunlight."
+You are an expert E-commerce Scriptwriter for VEO (Video AI). Your task is to analyze user images and generate a video script based on platform and duration, specifically formatted for VEO's 8-second clip limitation.
+You MUST return your answer as a single, valid JSON object.
+
+The JSON object must have two keys:
+1. "fullScript": A string containing the complete shooting script, broken into **8-SECOND BLOCKS**. Include VISUAL, AUDIO, and VOICEOVER lines.
+2. "voiceoverScript": A string containing ONLY the voiceover lines, concatenated together, ready for a Text-to-Speech engine.
+
+--- PENTING: CONTOH BLOK 8 DETIK ---
+{
+  "fullScript": "0:00-0:08 | VISUAL: Cinematic extreme close-up pada tekstur produk. Kamera tilt up.\nAUDIO: Musik Lo-fi dimulai.\nVOICEOVER: Ini bukan sekadar produk.\n\n0:08-0:16 | VISUAL: Medium shot model memakai produk, berjalan di taman kota.\nAUDIO: Suara langkah kaki.\nVOICEOVER: Ini adalah gaya hidup.",
+  "voiceoverScript": "Ini bukan sekadar produk. Ini adalah gaya hidup."
+}
 `.trim();
 
     const payload = {
@@ -363,42 +366,50 @@ You are an expert E-commerce Video Director. Your task is to analyze the user's 
             {
                 role: "user",
                 parts: [
-                    { "text": "--- PRODUK (Item untuk dipakai) ---" },
-                    {
-                        "inlineData": {
-                            "mimeType": "image/png",
-                            "data": productBase64
-                        }
-                    },
-                    { "text": "--- MODEL (Subjek yang memakai) ---" },
-                    {
-                        "inlineData": {
-                            "mimeType": "image/png",
-                            "data": modelBase64
-                        }
-                    },
+                    { "text": `Platform Target: ${platformInstruction}` },
+                    { "text": `**DURASI WAJIB**: Naskah HARUS pas untuk **${duration}**. Bagi naskah menjadi blok-blok 8 detik (0:00-0:08, 0:08-0:16, dst).`},
+                    { "text": "--- GAMBAR PRODUK (Fokus di sini) ---" },
+                    { "inlineData": { "mimeType": "image/png", "data": productBase64 } },
+                    { "text": "--- GAMBAR MODEL (Gunakan ini untuk 'vibe' dan 'gaya') ---" },
+                    { "inlineData": { "mimeType": "image/png", "data": modelBase64 } },
                     { "text": "--- TUGAS ANDA ---" },
-                    { "text": "Tulis satu paragraf naskah video dinamis (untuk AI Veo) yang menampilkan MODEL memakai PRODUK." }
+                    { "text": `Tulis naskah VEO yang mempromosikan PRODUK dengan gaya MODEL, sesuai target platform dan durasi. Bagi menjadi blok 8 detik. Kembalikan HANYA objek JSON yang valid.` }
                 ]
             }
         ],
-        systemInstruction: { parts: [{ "text": systemPrompt }] }
+        systemInstruction: {
+            parts: [{ "text": systemPrompt }]
+        },
+        generationConfig: {
+            responseMimeType: "application/json"
+        }
     };
+
     try {
         const result = await fetchWithRetry(GEMINI_TEXT_API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
+
         if (result.candidates && result.candidates[0]) {
-            const text = result.candidates[0].content.parts[0].text;
-            return { success: true, prompt: text };
+            const jsonText = result.candidates[0].content.parts[0].text;
+            let scriptData;
+            try {
+                scriptData = JSON.parse(jsonText);
+            } catch (parseError) {
+                console.error("Gagal mem-parse JSON dari AI:", jsonText);
+                throw new Error("Respons AI bukan JSON yang valid.");
+            }
+            if (!scriptData || !scriptData.fullScript || typeof scriptData.voiceoverScript === 'undefined') {
+                throw new Error("JSON respons dari AI tidak memiliki kunci 'fullScript' atau 'voiceoverScript'.");
+            }
+            return { success: true, scriptData: scriptData };
         } else {
-            console.error("AI Error (generateVideoPrompt):", result);
-            throw new Error("API (Video Prompt) tidak mengembalikan 'candidates'.");
+            throw new Error("API (Veo Prompt Gen) tidak mengembalikan 'candidates'.");
         }
     } catch (error) {
-        console.error('AI Generate Video Prompt Error:', error);
+        console.error('AI Generate Veo Prompt Error:', error);
         return { success: false, error: error.message };
     }
 }
@@ -420,7 +431,7 @@ async function generateVideoFromImage(prompt) {
 
 
 /**
- * FITUR 4 (Langkah A): Generate Audio Script (Vision-to-Text)
+ * **PERUBAHAN**: FITUR 4 (Langkah A): Generate Audio Script (8s)
  */
 async function generateAudioScript(productBase64, modelBase64, platform, duration) {
     if (!API_KEY) {
@@ -429,34 +440,26 @@ async function generateAudioScript(productBase64, modelBase64, platform, duratio
 
     let platformInstruction = "";
     switch(platform) {
-        case "tiktok":
-            platformInstruction = "Gaya: Trendy, hook kuat, bahasa gaul.";
-            break;
-        case "instagram":
-            platformInstruction = "Gaya: Estetik, cinematic, storytelling, fokus pada 'vibe'.";
-            break;
-        case "youtube":
-            platformInstruction = "Gaya: Informatif, jelas, profesional, fokus fitur.";
-            break;
-        case "shopee":
-            platformInstruction = "Gaya: Direct-to-sales, persuasif, fokus CTA dan promo.";
-            break;
-        default:
-            platformInstruction = "Gaya: Iklan general.";
+        case "tiktok": platformInstruction = "Gaya: Trendy, hook kuat, bahasa gaul."; break;
+        case "instagram": platformInstruction = "Gaya: Estetik, cinematic, storytelling, fokus pada 'vibe'."; break;
+        case "youtube": platformInstruction = "Gaya: Informatif, jelas, profesional, fokus fitur."; break;
+        case "shopee": platformInstruction = "Gaya: Direct-to-sales, persuasif, fokus CTA dan promo."; break;
+        default: platformInstruction = "Gaya: Iklan general.";
     }
 
+    // **PERUBAHAN**: System prompt sekarang mencontohkan blok 8 detik
     const systemPrompt = `
-You are an expert E-commerce Scriptwriter. Your task is to analyze user images and generate a video script based on platform and duration.
+You are an expert E-commerce Scriptwriter. Your task is to analyze user images and generate a video script based on platform and duration, specifically formatted into 8-second blocks.
 You MUST return your answer as a single, valid JSON object.
 
 The JSON object must have two keys:
-1. "fullScript": A string containing the complete shooting script, including VISUAL cues, AUDIO cues, and VOICEOVER lines (formatted nicely for a human director).
-2. "voiceoverScript": A string containing ONLY the voiceover lines, concatenated together, ready for a Text-to-Speech engine. All visual/audio cues (VISUAL:, AUDIO:, VOICEOVER:, [SCENE START], dll) harus dihilangkan.
+1. "fullScript": A string containing the complete shooting script, broken into **8-SECOND BLOCKS**. Include VISUAL, AUDIO, and VOICEOVER lines.
+2. "voiceoverScript": A string containing ONLY the voiceover lines, concatenated together, ready for a Text-to-Speech engine.
 
-Example JSON output:
+--- PENTING: CONTOH BLOK 8 DETIK ---
 {
-  "fullScript": "0:00-0:05 | VISUAL: Close up pada produk.\nVOICEOVER: Lihat produk luar biasa ini.\n0:05-0:10 | VISUAL: Model tersenyum.\nVOICEOVER: Ini akan mengubah hidup Anda.",
-  "voiceoverScript": "Lihat produk luar biasa ini. Ini akan mengubah hidup Anda."
+  "fullScript": "0:00-0:08 | VISUAL: Cinematic extreme close-up pada tekstur produk. Kamera tilt up.\nAUDIO: Musik Lo-fi dimulai.\nVOICEOVER: Ini bukan sekadar produk.\n\n0:08-0:16 | VISUAL: Medium shot model memakai produk, berjalan di taman kota.\nAUDIO: Suara langkah kaki.\nVOICEOVER: Ini adalah gaya hidup.",
+  "voiceoverScript": "Ini bukan sekadar produk. Ini adalah gaya hidup."
 }
 `.trim();
 
@@ -466,23 +469,13 @@ Example JSON output:
                 role: "user",
                 parts: [
                     { "text": `Platform Target: ${platformInstruction}` },
-                    { "text": `**DURASI WAJIB**: Naskah HARUS pas untuk **${duration}**.`},
+                    { "text": `**DURASI WAJIB**: Naskah HARUS pas untuk **${duration}**. Bagi naskah menjadi blok-blok 8 detik (0:00-0:08, 0:08-0:16, dst).`},
                     { "text": "--- GAMBAR PRODUK (Fokus di sini) ---" },
-                    {
-                        "inlineData": {
-                            "mimeType": "image/png",
-                            "data": productBase64
-                        }
-                    },
+                    { "inlineData": { "mimeType": "image/png", "data": productBase64 } },
                     { "text": "--- GAMBAR MODEL (Gunakan ini untuk 'vibe' dan 'gaya') ---" },
-                    {
-                        "inlineData": {
-                            "mimeType": "image/png",
-                            "data": modelBase64
-                        }
-                    },
+                    { "inlineData": { "mimeType": "image/png", "data": modelBase64 } },
                     { "text": "--- TUGAS ANDA ---" },
-                    { "text": `Tulis naskah iklan yang mempromosikan GAMBAR PRODUK dengan gaya dari GAMBAR MODEL, sesuai target platform dan durasi. Kembalikan HANYA objek JSON yang valid.` }
+                    { "text": `Tulis naskah iklan yang mempromosikan GAMBAR PRODUK dengan gaya dari GAMBAR MODEL, sesuai target platform dan durasi. Bagi menjadi blok 8 detik. Kembalikan HANYA objek JSON yang valid.` }
                 ]
             }
         ],
@@ -503,7 +496,6 @@ Example JSON output:
 
         if (result.candidates && result.candidates[0]) {
             const jsonText = result.candidates[0].content.parts[0].text;
-
             let scriptData;
             try {
                 scriptData = JSON.parse(jsonText);
@@ -511,14 +503,12 @@ Example JSON output:
                 console.error("Gagal mem-parse JSON dari AI:", jsonText);
                 throw new Error("Respons AI bukan JSON yang valid.");
             }
-
             if (!scriptData || !scriptData.fullScript || typeof scriptData.voiceoverScript === 'undefined') {
                 throw new Error("JSON respons dari AI tidak memiliki kunci 'fullScript' atau 'voiceoverScript'.");
             }
-
             return { success: true, scriptData: scriptData };
         } else {
-            throw new Error("API (Script Gen) tidak mengembalikan 'candidates'.");
+            throw new Error("API (Audio Script Gen) tidak mengembalikan 'candidates'.");
         }
     } catch (error) {
         console.error('AI Generate Audio Script Error:', error);
@@ -564,11 +554,10 @@ async function generateVoiceover(script, voiceName) {
         const mimeType = part?.inlineData?.mimeType;
 
         if (audioData && mimeType && mimeType.startsWith("audio/")) {
+            // **PERBAIKAN BUG**: Tambahkan fallback jika regex gagal
             const rateMatch = mimeType.match(/rate=(\d+)/);
-            if (!rateMatch) {
-                throw new Error("Tidak dapat menemukan sample rate di mimeType: " + mimeType);
-            }
-            const sampleRate = parseInt(rateMatch[1], 10);
+            const sampleRate = (rateMatch && rateMatch[1]) ? parseInt(rateMatch[1], 10) : 24000; // Default 24kHz
+
             return {
                 success: true,
                 audioBase64: audioData,
@@ -682,7 +671,7 @@ module.exports = {
     generateByReference,
     segmentProduct,
     generateModelFromProduct,
-    generateVideoPrompt,
+    generateVeoPrompt, // **PERUBAHAN**: Mengganti nama fungsi lama
     generateVideoFromImage,
     generateAudioScript,
     generateVoiceover,

@@ -117,7 +117,7 @@
             background: #f5f7fa;
         }
 
-        /* ===== CSS BARU UNTUK REKOMENDASI ===== */
+        /* CSS UNTUK REKOMENDASI */
         .result-column .form-group {
             margin-top: 2rem;
             border-top: 2px solid var(--color-border);
@@ -137,13 +137,13 @@
             border-color: var(--color-primary);
         }
         .recommendation-box {
-            background-color: #f0f3f7; /* Latar sedikit beda */
+            background-color: #f0f3f7;
             border: 1px solid var(--color-border);
             border-radius: var(--border-radius);
             padding: 1.5rem;
             margin-top: 1rem;
-            display: none; /* Sembunyi by default */
-            white-space: pre-wrap; /* Jaga format teks dari AI */
+            display: none;
+            white-space: pre-wrap;
             font-size: 0.9rem;
             color: var(--color-text);
         }
@@ -163,7 +163,7 @@
             margin-bottom: 0.5rem;
         }
         .loading-inline {
-            display: none; /* Sembunyi by default */
+            display: none;
             align-items: center;
             gap: 0.75rem;
             font-size: 0.9rem;
@@ -173,7 +173,6 @@
         .loading-inline i {
             color: var(--color-primary);
         }
-        /* ===== AKHIR CSS BARU ===== */
     </style>
 </head>
 <body>
@@ -204,18 +203,20 @@
                         </select>
                     </div>
 
-                    <!-- **BARU**: Langkah 2: Durasi -->
+                    <!-- **PERUBAHAN**: Langkah 2: Durasi (Kelipatan 8s) -->
                     <div class="form-group">
                         <label for="durationSelect" class="font-bold text-xl mb-4 block">Langkah 2: Tentukan Durasi Naskah</label>
-                        <p class="helper-text">Pilih total durasi video yang Anda inginkan.</p>
+                        <p class="helper-text">Pilih total durasi naskah yang Anda inginkan (dlm blok 8 detik).</p>
                         <select id="durationSelect">
-                            <option value="15 detik">15 Detik (Cepat & Padat)</option>
-                            <option value="30 detik" selected>30 Detik (Standar Iklan)</option>
-                            <option value="60 detik">60 Detik (Informatif)</option>
+                            <option value="8 detik">8 Detik (1 Klip)</option>
+                            <option value="16 detik" selected>16 Detik (2 Klip)</option>
+                            <option value="24 detik">24 Detik (3 Klip)</option>
+                            <option value="32 detik">32 Detik (4 Klip)</option>
+                            <option value="40 detik">40 Detik (5 Klip)</option>
                         </select>
                     </div>
 
-                    <!-- **UPDATE**: Langkah 3: Upload Gambar -->
+                    <!-- Langkah 3: Upload Gambar -->
                     <div class="form-group">
                         <label class="font-bold text-xl mb-4 block">Langkah 3: Upload Aset Visual</label>
                         <p class="helper-text">AI akan menganalisis kedua gambar untuk membuat naskah.</p>
@@ -238,7 +239,7 @@
                     </div>
 
 
-                    <!-- **UPDATE**: Langkah 4: Tombol Generate Script -->
+                    <!-- Langkah 4: Tombol Generate Script -->
                     <div class="form-group" style="margin-top: 2rem;">
                         <button type="button" class="btn-secondary" id="generateScriptButton" disabled>
                             <i class="fas fa-wand-magic-sparkles"></i>
@@ -246,14 +247,14 @@
                         </button>
                     </div>
 
-                    <!-- **UPDATE**: Langkah 5: Edit Script -->
+                    <!-- Langkah 5: Edit Script -->
                     <div class="form-group">
                         <label for="scriptOutput" class="font-bold text-xl mb-4 block">Langkah 5: Naskah Sutradara (Read-Only)</label>
                         <p class="helper-text">Hasil naskah lengkap (visual, audio, vo) akan muncul di sini.</p>
                         <textarea id="scriptOutput" placeholder="Naskah iklan akan muncul di sini..." readonly style="min-height: 180px; background-color: #f9fafb;"></textarea>
                     </div>
 
-                    <!-- **UPDATE**: Langkah 6: Pilih Suara -->
+                    <!-- Langkah 6: Pilih Suara -->
                     <div class="form-group">
                         <label for="voiceSelect" class="font-bold text-xl mb-4 block">Langkah 6: Pilih Suara</label>
                         <p class="helper-text">Pilih karakter suara untuk voiceover Anda.</p>
@@ -267,7 +268,7 @@
                         </select>
                     </div>
 
-                    <!-- **UPDATE**: Langkah 7: Tombol Generate Voiceover -->
+                    <!-- Langkah 7: Tombol Generate Voiceover -->
                     <button type="button" class="btn-execute" id="generateVoiceButton" disabled>
                         <i class="fas fa-microphone-alt"></i>
                         Langkah 7: Generate Voiceover
@@ -302,7 +303,7 @@
                     Download .WAV
                 </a>
 
-                <!-- **UPDATE**: Langkah 8: Rekomendasi -->
+                <!-- Langkah 8: Rekomendasi -->
                 <div class="form-group"> <!-- Ini adalah grup baru di kolom kanan -->
                     <h3 class="font-bold text-xl mb-4">Langkah 8: Rekomendasi Audio Lanjutan</h3>
                     <p class="helper-text mb-6" style="font-size: 0.9rem; line-height: 1.5;">
@@ -393,13 +394,13 @@
     }
 
     function pcmToWav(pcmData, sampleRate) {
-        const pcm16 = new Int16Array(pcmData);
+        // pcmData HARUS berupa Int16Array
         const numChannels = 1;
         const bitsPerSample = 16;
         const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
         const blockAlign = numChannels * (bitsPerSample / 8);
 
-        const dataSize = pcm16.length * (bitsPerSample / 8);
+        const dataSize = pcmData.length * (bitsPerSample / 8); // pcmData.length adalah jumlah sampel Int16
         const chunkSize = 36 + dataSize;
         const buffer = new ArrayBuffer(44 + dataSize);
         const view = new DataView(buffer);
@@ -418,9 +419,10 @@
         writeString(view, 36, 'data');
         view.setUint32(40, dataSize, true);
 
+        // Tulis data Int16
         let offset = 44;
-        for (let i = 0; i < pcm16.length; i++, offset += 2) {
-            view.setInt16(offset, pcm16[i], true);
+        for (let i = 0; i < pcmData.length; i++, offset += 2) {
+            view.setInt16(offset, pcmData[i], true);
         }
 
         return new Blob([view], { type: 'audio/wav' });
@@ -492,7 +494,6 @@
     modelImageInput.addEventListener('change', (e) => handleFileSelect(e, 'modelImagePreview', 'modelUploadLabel', 'model'));
 
     scriptOutput.addEventListener('input', () => {
-        // Tombol VO hanya aktif jika naskah bersih ada
         generateVoiceButton.disabled = !cleanVoiceoverScript;
     });
 
@@ -529,7 +530,7 @@
                 scriptOutput.value = scriptData.fullScript;
                 cleanVoiceoverScript = scriptData.voiceoverScript;
 
-                scriptOutput.disabled = true; // **PERUBAHAN**: Tetap buat read-only
+                scriptOutput.disabled = true;
                 generateVoiceButton.disabled = false;
             } else {
                 errorMessage.textContent = 'Gagal generate naskah: ' + (data.error || 'Respon AI tidak valid.');
@@ -578,6 +579,7 @@
 
             if (data.success && data.data.audioBase64 && data.data.sampleRate) {
                 const pcmBuffer = base64ToArrayBuffer(data.data.audioBase64);
+                // **PERBAIKAN BUG**: Pastikan ini adalah Int16Array
                 const pcmData = new Int16Array(pcmBuffer);
                 const wavBlob = pcmToWav(pcmData, data.data.sampleRate);
 

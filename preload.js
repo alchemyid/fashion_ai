@@ -1,5 +1,10 @@
 const { contextBridge } = require('electron');
 
+// Expose backend server configuration FIRST
+contextBridge.exposeInMainWorld('electronAPI', {
+    backendServer: process.env.BACKEND_SERVER || 'http://127.0.0.1:8000'
+});
+
 // Expose a secure API for the renderer process
 contextBridge.exposeInMainWorld('electron', {
     /**
@@ -8,6 +13,7 @@ contextBridge.exposeInMainWorld('electron', {
      * @param {object} body - The JSON body for the POST request.
      * @returns {Promise<object>} - The JSON response from the server.
      */
+
     invoke: async (endpoint, body) => {
         try {
             const response = await fetch(`http://localhost:5000${endpoint}`, {

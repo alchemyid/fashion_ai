@@ -25,15 +25,13 @@ function startAPIServer() {
         res.json({ status: 'ok', timestamp: new Date().toISOString() });
     });
 
-    // **PERUBAHAN**: Endpoint FITUR 1 (TEKS): Generate by command
+    // Endpoint FITUR 1 (TEKS): Generate by command
     apiApp.post('/api/generate-by-command', async (req, res) => {
         try {
-            // **PERUBAHAN**: Ambil kedua toggle
             const { prompt, sampleCount, isProductOnly, isConsistent } = req.body;
             if (!prompt) {
                 return res.status(400).json({ success: false, error: 'Prompt is required.' });
             }
-            // **PERUBAHAN**: Teruskan kedua toggle ke service
             const result = await aiService.generateImage(prompt, sampleCount, isProductOnly, isConsistent);
             if (result.success) {
                 res.json({ success: true, data: { imagesBase64: result.imagesBase64 } });
@@ -89,7 +87,6 @@ function startAPIServer() {
             if (!cleanProductBase64 || !mode) {
                 return res.status(400).json({ success: false, error: 'cleanProductBase64 and mode are required.' });
             }
-            // ... (validasi lainnya)
             const result = await aiService.generateModelFromProduct(
                 cleanProductBase64, sampleCount, mode, prompt, modelReferenceBase64
             );
@@ -106,13 +103,13 @@ function startAPIServer() {
     // Endpoint FITUR 3 (Langkah A - Image-to-Text)
     apiApp.post('/api/generate-video-prompt', async (req, res) => {
         try {
-            const { productBase64, modelBase64 } = req.body;
-            if (!productBase64 || !modelBase64) {
-                return res.status(400).json({ success: false, error: 'productBase64 and modelBase64 are required.' });
+            const { productBase64, modelBase64, platform, duration } = req.body;
+            if (!productBase64 || !modelBase64 || !platform || !duration) {
+                return res.status(400).json({ success: false, error: 'productBase64, modelBase64, platform, and duration are required.' });
             }
-            const result = await aiService.generateVideoPrompt(productBase64, modelBase64);
+            const result = await aiService.generateVeoPrompt(productBase64, modelBase64, platform, duration);
             if (result.success) {
-                res.json({ success: true, data: { prompt: result.prompt } });
+                res.json({ success: true, data: { scriptData: result.scriptData } });
             } else {
                 res.status(500).json({ success: false, error: result.error });
             }

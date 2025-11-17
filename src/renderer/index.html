@@ -260,6 +260,16 @@
     </div>
 </div>
 <script>
+    // TAMBAHKAN DEBUG LOGS
+    console.log('=== LOGIN DEBUG ===');
+    console.log('window.electronAPI:', window.electronAPI);
+    console.log('backendServer:', window.electronAPI?.backendServer);
+
+    // Get backend server from electron API
+    const BACKEND_SERVER = window.electronAPI?.backendServer || 'http://127.0.0.1:8000';
+    console.log('Using BACKEND_SERVER:', BACKEND_SERVER);
+    console.log('==================');
+
     // Simple XOR encryption (basic obfuscation)
     function simpleEncrypt(text) {
         let result = '';
@@ -288,12 +298,10 @@
     window.addEventListener('DOMContentLoaded', () => {
         if (localStorage.getItem('logged_in') === 'true' &&
             localStorage.getItem('remember_me') === 'true') {
-            // Auto-login: redirect to dashboard
             window.location.href = 'dashboard.html';
             return;
         }
 
-        // Auto-fill credentials if remembered
         if (localStorage.getItem('remember_me') === 'true') {
             const savedUsername = localStorage.getItem('username');
             const savedPassword = localStorage.getItem('password');
@@ -310,25 +318,74 @@
         }
     });
 
-    document.getElementById('loginForm').addEventListener('submit', (e) => {
+    // Validate credentials with backend server
+    async function validateCredentials(username, secretKey) {
+        console.log('Calling backend API:', `${BACKEND_SERVER}/validate_key`);
+        try {
+            const response = await fetch(`${BACKEND_SERVER}/validate_key`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    username: username,
+                    secret_key: secretKey
+                })
+            });
+
+            console.log('Response status:', response.status);
+            const data = await response.json();
+            console.log('Response data:', data);
+
+            if (response.ok && data.valid === true) {
+                return { success: true, data };
+            } else {
+                return {
+                    success: false,
+                    message: data.detail || 'Invalid credentials'
+                };
+            }
+        } catch (error) {
+            console.error('Login error:', error);
+            return {
+                success: false,
+                message: 'Unable to connect to server. Please check your connection.'
+            };
+        }
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
         e.preventDefault();
 
         const username = document.getElementById('username').value;
         const password = document.getElementById('password').value;
         const rememberMe = document.getElementById('rememberMe').checked;
         const errorMessage = document.getElementById('errorMessage');
+        const submitButton = e.target.querySelector('.btn-login');
 
-        if (username === 'admin' && password === 'admin') {
+        // Disable button and show loading state
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Signing in...';
+
+        // Validate with backend - HAPUS HARDCODED VALIDATION
+        const result = await validateCredentials(username, password);
+
+        if (result.success) {
+            // Store authentication data
             localStorage.setItem('logged_in', 'true');
+            localStorage.setItem('username', username);
 
             if (rememberMe) {
                 localStorage.setItem('remember_me', 'true');
-                localStorage.setItem('username', username);
                 localStorage.setItem('password', simpleEncrypt(password));
             } else {
                 localStorage.removeItem('remember_me');
-                localStorage.removeItem('username');
                 localStorage.removeItem('password');
+            }
+
+            // Store additional data from backend if needed
+            if (result.data.user_info) {
+                localStorage.setItem('user_info', JSON.stringify(result.data.user_info));
             }
 
             // Smooth transition
@@ -339,15 +396,20 @@
                 window.location.href = 'dashboard.html';
             }, 300);
         } else {
+            // Show error message
+            errorMessage.textContent = result.message;
             errorMessage.classList.add('show');
             document.getElementById('password').value = '';
 
+            // Re-enable button
+            submitButton.disabled = false;
+            submitButton.innerHTML = '<i class="fas fa-sign-in-alt"></i> Sign In';
+
             setTimeout(() => {
                 errorMessage.classList.remove('show');
-            }, 3000);
+            }, 4000);
         }
     });
 </script>
-
 </body>
 </html>
