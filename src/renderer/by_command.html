@@ -66,6 +66,7 @@
             overflow: hidden;
             box-shadow: var(--shadow);
             background: #e2e8f0;
+            aspect-ratio: 1 / 1;
         }
         .thumbnail-item img {
             width: 100%;
@@ -94,6 +95,57 @@
         }
         .download-btn i {
             margin-right: 0.25rem;
+        }
+
+        /* Style untuk Toggle Switch */
+        .toggle-switch-container {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 28px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: var(--color-primary);
+        }
+        input:checked + .slider:before {
+            transform: translateX(22px);
+        }
+        .toggle-switch-container label {
+            font-weight: 600;
+            color: var(--color-text);
+            margin-bottom: 0; /* Override default margin */
         }
     </style>
 </head>
@@ -124,18 +176,45 @@
                     </div>
                 </div>
 
-                <!-- OPSI JUMLAH GAMBAR BARU -->
+                <!-- OPSI JUMLAH GAMBAR (DIPERBAIKI) -->
                 <div class="form-group">
                     <label>Jumlah Gambar</label>
-                    <p class="helper-text">Pilih berapa banyak gambar yang ingin Anda buat (1-6)</p>
+                    <p class="helper-text">Pilih berapa banyak gambar yang ingin Anda buat (1-4)</p>
                     <div class="count-selector" id="countSelector">
                         <button type="button" class="count-btn active" data-count="1">1</button>
                         <button type="button" class="count-btn" data-count="2">2</button>
                         <button type="button" class="count-btn" data-count="3">3</button>
                         <button type="button" class="count-btn" data-count="4">4</button>
-                        <button type="button" class="count-btn" data-count="5">5</button>
-                        <button type="button" class="count-btn" data-count="6">6</button>
+                        <!-- Tombol 5 dan 6 dihapus untuk memperbaiki Error 400 -->
                     </div>
+                </div>
+
+                <!-- **PERUBAHAN**: Toggle 1 (Model) -->
+                <div class="form-group">
+                    <div class="toggle-switch-container">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="productOnlyToggle" checked>
+                            <span class="slider"></span>
+                        </label>
+                        <label for="productOnlyToggle">Product Shot Only (Tanpa Model)</label>
+                    </div>
+                    <p class="helper-text" style="margin-top: 0.5rem;">
+                        'On': Fokus pada produk saja (latar putih). 'Off': Izinkan AI menambahkan model & latar.
+                    </p>
+                </div>
+
+                <!-- **PERUBAHAN**: Toggle 2 (Konsistensi) -->
+                <div class="form-group">
+                    <div class="toggle-switch-container">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="consistencyToggle" checked>
+                            <span class="slider"></span>
+                        </label>
+                        <label for="consistencyToggle">Hasil yang Konsisten</label>
+                    </div>
+                    <p class="helper-text" style="margin-top: 0.5rem;">
+                        (Jika > 1 gambar) 'On': Paksa AI fokus pada satu ide produk. 'Off': Izinkan variasi desain.
+                    </p>
                 </div>
 
                 <div class="form-group">
@@ -179,11 +258,8 @@
     const countSelector = document.getElementById('countSelector');
     countSelector.addEventListener('click', (e) => {
         if (e.target.classList.contains('count-btn')) {
-            // Hapus 'active' dari semua tombol
             countSelector.querySelectorAll('.count-btn').forEach(btn => btn.classList.remove('active'));
-            // Tambahkan 'active' ke tombol yang diklik
             e.target.classList.add('active');
-            // Simpan jumlah yang dipilih
             selectedCount = parseInt(e.target.dataset.count, 10);
         }
     });
@@ -193,9 +269,13 @@
         e.preventDefault();
 
         const prompt = document.getElementById('prompt').value;
+        // **PERUBAHAN**: Menggunakan ID toggle yang baru
+        const isProductOnly = document.getElementById('productOnlyToggle').checked;
+        const isConsistent = document.getElementById('consistencyToggle').checked; // **BARU**
+
         const loading = document.getElementById('loading');
         const result = document.getElementById('result');
-        const resultDisplay = document.getElementById('resultDisplay'); // Target div grid
+        const resultDisplay = document.getElementById('resultDisplay');
         const errorMessage = document.getElementById('errorMessage');
         const generateButton = document.getElementById('generateButton');
 
@@ -204,7 +284,7 @@
         result.style.display = 'none';
         errorMessage.style.display = 'none';
         errorMessage.textContent = '';
-        resultDisplay.innerHTML = ''; // Kosongkan grid hasil sebelumnya
+        resultDisplay.innerHTML = '';
         generateButton.disabled = true;
         generateButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
 
@@ -212,35 +292,39 @@
             const response = await fetch('http://localhost:5000/api/generate-by-command', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                // Kirim prompt dan jumlah gambar
-                body: JSON.stringify({ prompt, sampleCount: selectedCount })
+                // **PERUBAHAN**: Kirim kedua status toggle
+                body: JSON.stringify({
+                    prompt,
+                    sampleCount: selectedCount,
+                    isProductOnly: isProductOnly,
+                    isConsistent: isConsistent
+                })
             });
 
             const data = await response.json();
 
             if (data.success && data.data.imagesBase64 && Array.isArray(data.data.imagesBase64)) {
-                // **PERBAIKAN UTAMA**: Loop melalui array gambar
+
+                if(data.data.imagesBase64.length === 0) {
+                    throw new Error("AI berhasil merespons, namun tidak ada gambar yang dikembalikan. Coba prompt lain.");
+                }
+
                 data.data.imagesBase64.forEach((base64String, index) => {
                     const dataUrl = 'data:image/png;base64,' + base64String;
 
-                    // Buat container untuk thumbnail
                     const item = document.createElement('div');
                     item.className = 'thumbnail-item';
 
-                    // Buat gambar
                     const img = document.createElement('img');
                     img.src = dataUrl;
                     img.alt = `${prompt.substring(0, 20)}... (${index + 1})`;
 
-                    // Buat tombol download
                     const downloadBtn = document.createElement('a');
                     downloadBtn.href = dataUrl;
-                    // Beri nama file unik
                     downloadBtn.download = `fashion-ai-${Date.now()}-${index + 1}.png`;
                     downloadBtn.className = 'download-btn';
                     downloadBtn.innerHTML = '<i class="fas fa-download"></i>';
 
-                    // Masukkan ke grid
                     item.appendChild(img);
                     item.appendChild(downloadBtn);
                     resultDisplay.appendChild(item);
@@ -248,12 +332,10 @@
 
                 result.style.display = 'block';
             } else {
-                // Tampilkan error di UI, bukan alert
                 errorMessage.textContent = 'Error: ' + (data.error || 'Respon API tidak valid.');
                 errorMessage.style.display = 'block';
             }
         } catch (error) {
-            // Tampilkan error koneksi di UI
             errorMessage.textContent = 'Gagal terhubung ke server: ' + error.message;
             errorMessage.style.display = 'block';
         } finally {

@@ -25,14 +25,16 @@ function startAPIServer() {
         res.json({ status: 'ok', timestamp: new Date().toISOString() });
     });
 
-    // Endpoint FITUR 1 (TEKS): Generate by command
+    // **PERUBAHAN**: Endpoint FITUR 1 (TEKS): Generate by command
     apiApp.post('/api/generate-by-command', async (req, res) => {
         try {
-            const { prompt, sampleCount } = req.body;
+            // **PERUBAHAN**: Ambil kedua toggle
+            const { prompt, sampleCount, isProductOnly, isConsistent } = req.body;
             if (!prompt) {
                 return res.status(400).json({ success: false, error: 'Prompt is required.' });
             }
-            const result = await aiService.generateImage(prompt, sampleCount);
+            // **PERUBAHAN**: Teruskan kedua toggle ke service
+            const result = await aiService.generateImage(prompt, sampleCount, isProductOnly, isConsistent);
             if (result.success) {
                 res.json({ success: true, data: { imagesBase64: result.imagesBase64 } });
             } else {
@@ -101,15 +103,13 @@ function startAPIServer() {
         }
     });
 
-    // **PERUBAHAN**: Endpoint FITUR 3 (Langkah A - Image-to-Text)
+    // Endpoint FITUR 3 (Langkah A - Image-to-Text)
     apiApp.post('/api/generate-video-prompt', async (req, res) => {
         try {
-            // **PERUBAHAN**: Menerima dua gambar
             const { productBase64, modelBase64 } = req.body;
             if (!productBase64 || !modelBase64) {
                 return res.status(400).json({ success: false, error: 'productBase64 and modelBase64 are required.' });
             }
-            // **PERUBAHAN**: Mengirim dua gambar ke service
             const result = await aiService.generateVideoPrompt(productBase64, modelBase64);
             if (result.success) {
                 res.json({ success: true, data: { prompt: result.prompt } });
@@ -121,15 +121,13 @@ function startAPIServer() {
         }
     });
 
-    // **PERUBAHAN**: Endpoint FITUR 3 (Langkah B - Placeholder)
+    // Endpoint FITUR 3 (Langkah B - Placeholder)
     apiApp.post('/api/generate-video-from-image', async (req, res) => {
         try {
-            // **PERUBAHAN**: Hanya menerima prompt
             const { prompt } = req.body;
             if (!prompt) {
                 return res.status(400).json({ success: false, error: 'Prompt is required.' });
             }
-            // **PERUBAHAN**: Panggil fungsi placeholder hanya dengan prompt
             const result = await aiService.generateVideoFromImage(prompt);
             res.json(result);
         } catch (error) {
