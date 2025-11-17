@@ -15,7 +15,6 @@ if (!process.env.GEMINI_API_KEY) {
 
 function startAPIServer() {
     const apiApp = express();
-    // Tambahkan limit agar bisa menerima gambar Base64 besar di Fitur 2
     apiApp.use(express.json({ limit: '50mb' }));
     apiApp.use(cors());
 
@@ -51,9 +50,7 @@ function startAPIServer() {
             if (!referenceBase64 || !prompt) {
                 return res.status(400).json({ success: false, error: 'referenceBase64 and prompt are required.' });
             }
-
             const result = await aiService.generateByReference(referenceBase64, prompt, sampleCount);
-
             if (result.success) {
                 res.json({ success: true, data: { imagesBase64: result.imagesBase64 } });
             } else {
@@ -87,33 +84,15 @@ function startAPIServer() {
     apiApp.post('/api/generate-model-from-product', async (req, res) => {
         try {
             const { prompt, cleanProductBase64, sampleCount, mode, modelReferenceBase64 } = req.body;
-
             if (!cleanProductBase64 || !mode) {
                 return res.status(400).json({ success: false, error: 'cleanProductBase64 and mode are required.' });
             }
-            if (mode === 'text' && !prompt) {
-                return res.status(400).json({ success: false, error: 'Prompt is required for text mode.' });
-            }
-            if (mode === 'reference' && !modelReferenceBase64) {
-                return res.status(400).json({ success: false, error: 'modelReferenceBase64 is required for reference mode.' });
-            }
-
+            // ... (validasi lainnya)
             const result = await aiService.generateModelFromProduct(
-                cleanProductBase64,
-                sampleCount,
-                mode,
-                prompt,
-                modelReferenceBase64
+                cleanProductBase64, sampleCount, mode, prompt, modelReferenceBase64
             );
-
             if (result.success) {
-                res.json({
-                    success: true,
-                    data: {
-                        imagesBase64: result.imagesBase64,
-                        angleTitles: result.angleTitles
-                    }
-                });
+                res.json({ success: true, data: { imagesBase64: result.imagesBase64, angleTitles: result.angleTitles } });
             } else {
                 res.status(500).json({ success: false, error: result.error });
             }
@@ -122,14 +101,16 @@ function startAPIServer() {
         }
     });
 
-    // Endpoint FITUR 3 (Langkah A - Image-to-Text)
+    // **PERUBAHAN**: Endpoint FITUR 3 (Langkah A - Image-to-Text)
     apiApp.post('/api/generate-video-prompt', async (req, res) => {
         try {
-            const { imageBase64 } = req.body;
-            if (!imageBase64) {
-                return res.status(400).json({ success: false, error: 'imageBase64 is required.' });
+            // **PERUBAHAN**: Menerima dua gambar
+            const { productBase64, modelBase64 } = req.body;
+            if (!productBase64 || !modelBase64) {
+                return res.status(400).json({ success: false, error: 'productBase64 and modelBase64 are required.' });
             }
-            const result = await aiService.generateVideoPrompt(imageBase64);
+            // **PERUBAHAN**: Mengirim dua gambar ke service
+            const result = await aiService.generateVideoPrompt(productBase64, modelBase64);
             if (result.success) {
                 res.json({ success: true, data: { prompt: result.prompt } });
             } else {
@@ -140,16 +121,17 @@ function startAPIServer() {
         }
     });
 
-    // Endpoint FITUR 3 (Langkah B - Placeholder)
+    // **PERUBAHAN**: Endpoint FITUR 3 (Langkah B - Placeholder)
     apiApp.post('/api/generate-video-from-image', async (req, res) => {
         try {
-            const { imageBase64, prompt } = req.body;
-            if (!imageBase64 || !prompt) {
-                return res.status(400).json({ success: false, error: 'imageBase64 and prompt are required.' });
+            // **PERUBAHAN**: Hanya menerima prompt
+            const { prompt } = req.body;
+            if (!prompt) {
+                return res.status(400).json({ success: false, error: 'Prompt is required.' });
             }
-            const result = await aiService.generateVideoFromImage(imageBase64, prompt);
+            // **PERUBAHAN**: Panggil fungsi placeholder hanya dengan prompt
+            const result = await aiService.generateVideoFromImage(prompt);
             res.json(result);
-
         } catch (error) {
             res.status(500).json({ success: false, error: error.message });
         }
@@ -158,16 +140,11 @@ function startAPIServer() {
     // Endpoint FITUR 4 (Langkah A - Vision-to-Script)
     apiApp.post('/api/generate-audio-script', async (req, res) => {
         try {
-            // **PERUBAHAN**: Ambil 'duration'
             const { productBase64, modelBase64, platform, duration } = req.body;
-            // **PERUBAHAN**: Validasi 'duration'
             if (!productBase64 || !modelBase64 || !platform || !duration) {
                 return res.status(400).json({ success: false, error: 'productBase64, modelBase64, platform, and duration are required.' });
             }
-
-            // **PERUBAHAN**: Kirim 'duration' ke service
             const result = await aiService.generateAudioScript(productBase64, modelBase64, platform, duration);
-
             if (result.success) {
                 res.json({ success: true, data: { scriptData: result.scriptData } });
             } else {
@@ -187,13 +164,7 @@ function startAPIServer() {
             }
             const result = await aiService.generateVoiceover(script, voiceName);
             if (result.success) {
-                res.json({
-                    success: true,
-                    data: {
-                        audioBase64: result.audioBase64,
-                        sampleRate: result.sampleRate
-                    }
-                });
+                res.json({ success: true, data: { audioBase64: result.audioBase64, sampleRate: result.sampleRate } });
             } else {
                 res.status(500).json({ success: false, error: result.error });
             }

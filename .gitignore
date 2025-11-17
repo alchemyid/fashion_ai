@@ -1,4 +1,19 @@
 node_modules
-dist
-.idea
 .env
+output/
+npm-debug.log
+.DS_Store
+/dist
+*.mp4
+*.wav
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+.env
+.python-version
+.idea/
+*.sock
