@@ -19,12 +19,12 @@
         /* Layout 2 Kolom */
         .feature-layout {
             display: grid;
-            grid-template-columns: 1fr; /* Default 1 kolom di mobile */
+            grid-template-columns: 1fr;
             gap: 2rem;
         }
         @media (min-width: 1024px) {
             .feature-layout {
-                grid-template-columns: 1fr 1fr; /* 2 kolom di desktop */
+                grid-template-columns: 1fr 1fr;
             }
         }
 
@@ -173,6 +173,29 @@
         .loading-inline i {
             color: var(--color-primary);
         }
+
+        /* Style untuk Radio Button Model AI */
+        .model-selector {
+            display: flex;
+            gap: 1.5rem;
+            margin-bottom: 1rem;
+            background: #fff;
+            padding: 1rem;
+            border: 1px solid var(--color-border);
+            border-radius: var(--border-radius);
+        }
+        .radio-label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            font-size: 0.95rem;
+        }
+        .radio-label input[type="radio"] {
+            accent-color: var(--color-primary);
+            width: 1.1rem;
+            height: 1.1rem;
+        }
     </style>
 </head>
 <body>
@@ -203,16 +226,28 @@
                         </select>
                     </div>
 
-                    <!-- **PERUBAHAN**: Langkah 2: Durasi (Kelipatan 8s) -->
+                    <!-- [BARU] Pilihan Model Video AI -->
+                    <div class="form-group">
+                        <label class="font-bold text-xl mb-2 block">Pilih Model Video AI</label>
+                        <p class="helper-text">Pilih model video generator target Anda untuk menyesuaikan durasi scene.</p>
+                        <div class="model-selector">
+                            <label class="radio-label">
+                                <input type="radio" name="aiModel" value="veo3" checked onchange="updateDurationOptions()">
+                                <span><b>VEO3</b> (Kelipatan 8 Detik)</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="aiModel" value="meta" onchange="updateDurationOptions()">
+                                <span><b>Meta AI</b> (Kelipatan 5 Detik)</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Langkah 2: Durasi (Dinamis) -->
                     <div class="form-group">
                         <label for="durationSelect" class="font-bold text-xl mb-4 block">Langkah 2: Tentukan Durasi Naskah</label>
-                        <p class="helper-text">Pilih total durasi naskah yang Anda inginkan (dlm blok 8 detik).</p>
+                        <p class="helper-text">Pilih total durasi naskah yang Anda inginkan.</p>
                         <select id="durationSelect">
-                            <option value="8 detik">8 Detik (1 Klip)</option>
-                            <option value="16 detik" selected>16 Detik (2 Klip)</option>
-                            <option value="24 detik">24 Detik (3 Klip)</option>
-                            <option value="32 detik">32 Detik (4 Klip)</option>
-                            <option value="40 detik">40 Detik (5 Klip)</option>
+                            <!-- Opsi akan diisi otomatis oleh JavaScript -->
                         </select>
                     </div>
 
@@ -350,7 +385,7 @@
 
     // Cache Elemen
     const platformSelect = document.getElementById('platformSelect');
-    const durationSelect = document.getElementById('durationSelect'); // **BARU**: Cache durasi
+    const durationSelect = document.getElementById('durationSelect');
     const productImageInput = document.getElementById('productImageInput');
     const modelImageInput = document.getElementById('modelImageInput');
     const generateScriptButton = document.getElementById('generateScriptButton');
@@ -381,6 +416,26 @@
     let modelBase64 = null;
     let currentAudioBlobUrl = null;
     let cleanVoiceoverScript = null;
+
+    // === FUNGSI PENGATUR DURASI DINAMIS ===
+    function updateDurationOptions() {
+        const model = document.querySelector('input[name="aiModel"]:checked').value;
+        const select = document.getElementById('durationSelect');
+        select.innerHTML = ''; // Kosongkan opsi saat ini
+
+        const step = model === 'veo3' ? 8 : 5;
+        const label = model === 'veo3' ? 'Klip VEO' : 'Klip Meta';
+        const maxClips = 5; // Maksimal 5 klip
+
+        for (let i = 1; i <= maxClips; i++) {
+            let seconds = step * i;
+            let option = document.createElement('option');
+            option.value = `${seconds} detik`;
+            option.text = `${seconds} Detik (${i} ${label})`;
+            if (i === 2) option.selected = true; // Default pilih 2 klip
+            select.add(option);
+        }
+    }
 
     // === FUNGSI KONVERSI AUDIO (PENTING) ===
     function base64ToArrayBuffer(base64) {
@@ -490,6 +545,11 @@
 
     // === EVENT LISTENERS ===
 
+    // Init options on load
+    document.addEventListener('DOMContentLoaded', () => {
+        updateDurationOptions();
+    });
+
     productImageInput.addEventListener('change', (e) => handleFileSelect(e, 'productImagePreview', 'productUploadLabel', 'product'));
     modelImageInput.addEventListener('change', (e) => handleFileSelect(e, 'modelImagePreview', 'modelUploadLabel', 'model'));
 
@@ -500,7 +560,9 @@
     // Handler Tombol "Generate Script" (Langkah 4)
     generateScriptButton.addEventListener('click', async () => {
         const platform = platformSelect.value;
-        const duration = durationSelect.value; // **BARU**: Ambil nilai durasi
+        const duration = durationSelect.value;
+        const aiModel = document.querySelector('input[name="aiModel"]:checked').value; // [BARU] Ambil Model AI
+
         if (!productBase64 || !modelBase64) return;
 
         loading.style.display = 'block';
@@ -519,7 +581,8 @@
                     productBase64: productBase64,
                     modelBase64: modelBase64,
                     platform: platform,
-                    duration: duration // **BARU**: Kirim durasi ke backend
+                    duration: duration,
+                    aiModel: aiModel // [BARU] Kirim ke backend
                 })
             });
             const data = await response.json();
@@ -579,7 +642,6 @@
 
             if (data.success && data.data.audioBase64 && data.data.sampleRate) {
                 const pcmBuffer = base64ToArrayBuffer(data.data.audioBase64);
-                // **PERBAIKAN BUG**: Pastikan ini adalah Int16Array
                 const pcmData = new Int16Array(pcmBuffer);
                 const wavBlob = pcmToWav(pcmData, data.data.sampleRate);
 

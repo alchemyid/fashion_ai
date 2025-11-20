@@ -345,7 +345,6 @@ async function generateVeoPrompt(productBase64, modelBase64, platform, duration)
         default: platformInstruction = "Gaya: Iklan general.";
     }
 
-    // **PERUBAHAN**: System prompt sekarang mencontohkan blok 8 detik
     const systemPrompt = `
 You are an expert E-commerce Scriptwriter for VEO (Video AI). Your task is to analyze user images and generate a video script based on platform and duration, specifically formatted for VEO's 8-second clip limitation.
 You MUST return your answer as a single, valid JSON object.
@@ -431,35 +430,36 @@ async function generateVideoFromImage(prompt) {
 
 
 /**
- * **PERUBAHAN**: FITUR 4 (Langkah A): Generate Audio Script (8s)
+ * **PERUBAHAN**: FITUR 4 (Langkah A): Generate Audio Script (Dinamis VEO/Meta)
  */
-async function generateAudioScript(productBase64, modelBase64, platform, duration) {
-    if (!API_KEY) {
-        return { success: false, error: "API Key tidak ditemukan." };
-    }
+async function generateAudioScript(productBase64, modelBase64, platform, duration, aiModel) {
+    if (!API_KEY) return { success: false, error: "API Key tidak ditemukan." };
 
     let platformInstruction = "";
     switch(platform) {
         case "tiktok": platformInstruction = "Gaya: Trendy, hook kuat, bahasa gaul."; break;
-        case "instagram": platformInstruction = "Gaya: Estetik, cinematic, storytelling, fokus pada 'vibe'."; break;
-        case "youtube": platformInstruction = "Gaya: Informatif, jelas, profesional, fokus fitur."; break;
-        case "shopee": platformInstruction = "Gaya: Direct-to-sales, persuasif, fokus CTA dan promo."; break;
+        case "instagram": platformInstruction = "Gaya: Estetik, cinematic, storytelling."; break;
+        case "youtube": platformInstruction = "Gaya: Informatif, jelas, profesional."; break;
+        case "shopee": platformInstruction = "Gaya: Direct-to-sales, persuasif, promo."; break;
         default: platformInstruction = "Gaya: Iklan general.";
     }
 
-    // **PERUBAHAN**: System prompt sekarang mencontohkan blok 8 detik
+    // [LOGIKA BARU] Tentukan durasi step berdasarkan model
+    const step = aiModel === 'meta' ? 5 : 8;
+    const modelName = aiModel === 'meta' ? 'Meta AI' : 'VEO3';
+
     const systemPrompt = `
-You are an expert E-commerce Scriptwriter. Your task is to analyze user images and generate a video script based on platform and duration, specifically formatted into 8-second blocks.
+You are an expert E-commerce Scriptwriter. Your task is to generate a video script specifically formatted into ${step}-second blocks for ${modelName}.
 You MUST return your answer as a single, valid JSON object.
 
 The JSON object must have two keys:
-1. "fullScript": A string containing the complete shooting script, broken into **8-SECOND BLOCKS**. Include VISUAL, AUDIO, and VOICEOVER lines.
-2. "voiceoverScript": A string containing ONLY the voiceover lines, concatenated together, ready for a Text-to-Speech engine.
+1. "fullScript": A string containing the complete shooting script, broken into **${step}-SECOND BLOCKS**. Include VISUAL, AUDIO, and VOICEOVER lines.
+2. "voiceoverScript": A string containing ONLY the voiceover lines.
 
---- PENTING: CONTOH BLOK 8 DETIK ---
+--- PENTING: CONTOH BLOK ${step} DETIK ---
 {
-  "fullScript": "0:00-0:08 | VISUAL: Cinematic extreme close-up pada tekstur produk. Kamera tilt up.\nAUDIO: Musik Lo-fi dimulai.\nVOICEOVER: Ini bukan sekadar produk.\n\n0:08-0:16 | VISUAL: Medium shot model memakai produk, berjalan di taman kota.\nAUDIO: Suara langkah kaki.\nVOICEOVER: Ini adalah gaya hidup.",
-  "voiceoverScript": "Ini bukan sekadar produk. Ini adalah gaya hidup."
+  "fullScript": "0:00-0:${step < 10 ? '0'+step : step} | VISUAL: ...\nAUDIO: ...\nVOICEOVER: ...\n\n0:${step < 10 ? '0'+step : step}-0:${step*2} | VISUAL: ...",
+  "voiceoverScript": "..."
 }
 `.trim();
 
@@ -469,22 +469,17 @@ The JSON object must have two keys:
                 role: "user",
                 parts: [
                     { "text": `Platform Target: ${platformInstruction}` },
-                    { "text": `**DURASI WAJIB**: Naskah HARUS pas untuk **${duration}**. Bagi naskah menjadi blok-blok 8 detik (0:00-0:08, 0:08-0:16, dst).`},
-                    { "text": "--- GAMBAR PRODUK (Fokus di sini) ---" },
+                    { "text": `**DURASI WAJIB**: Naskah HARUS pas untuk **${duration}**. Bagi naskah menjadi blok-blok ${step} detik.`},
+                    { "text": "--- GAMBAR PRODUK ---" },
                     { "inlineData": { "mimeType": "image/png", "data": productBase64 } },
-                    { "text": "--- GAMBAR MODEL (Gunakan ini untuk 'vibe' dan 'gaya') ---" },
+                    { "text": "--- GAMBAR MODEL ---" },
                     { "inlineData": { "mimeType": "image/png", "data": modelBase64 } },
-                    { "text": "--- TUGAS ANDA ---" },
-                    { "text": `Tulis naskah iklan yang mempromosikan GAMBAR PRODUK dengan gaya dari GAMBAR MODEL, sesuai target platform dan durasi. Bagi menjadi blok 8 detik. Kembalikan HANYA objek JSON yang valid.` }
+                    { "text": `Tulis naskah iklan untuk ${modelName} (per ${step} detik). Kembalikan JSON.` }
                 ]
             }
         ],
-        systemInstruction: {
-            parts: [{ "text": systemPrompt }]
-        },
-        generationConfig: {
-            responseMimeType: "application/json"
-        }
+        systemInstruction: { parts: [{ "text": systemPrompt }] },
+        generationConfig: { responseMimeType: "application/json" }
     };
 
     try {
@@ -503,12 +498,9 @@ The JSON object must have two keys:
                 console.error("Gagal mem-parse JSON dari AI:", jsonText);
                 throw new Error("Respons AI bukan JSON yang valid.");
             }
-            if (!scriptData || !scriptData.fullScript || typeof scriptData.voiceoverScript === 'undefined') {
-                throw new Error("JSON respons dari AI tidak memiliki kunci 'fullScript' atau 'voiceoverScript'.");
-            }
             return { success: true, scriptData: scriptData };
         } else {
-            throw new Error("API (Audio Script Gen) tidak mengembalikan 'candidates'.");
+            throw new Error("API tidak mengembalikan candidates.");
         }
     } catch (error) {
         console.error('AI Generate Audio Script Error:', error);
@@ -554,9 +546,8 @@ async function generateVoiceover(script, voiceName) {
         const mimeType = part?.inlineData?.mimeType;
 
         if (audioData && mimeType && mimeType.startsWith("audio/")) {
-            // **PERBAIKAN BUG**: Tambahkan fallback jika regex gagal
             const rateMatch = mimeType.match(/rate=(\d+)/);
-            const sampleRate = (rateMatch && rateMatch[1]) ? parseInt(rateMatch[1], 10) : 24000; // Default 24kHz
+            const sampleRate = (rateMatch && rateMatch[1]) ? parseInt(rateMatch[1], 10) : 24000;
 
             return {
                 success: true,
@@ -671,7 +662,7 @@ module.exports = {
     generateByReference,
     segmentProduct,
     generateModelFromProduct,
-    generateVeoPrompt, // **PERUBAHAN**: Mengganti nama fungsi lama
+    generateVeoPrompt,
     generateVideoFromImage,
     generateAudioScript,
     generateVoiceover,

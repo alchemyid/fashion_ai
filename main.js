@@ -2,7 +2,6 @@ const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const express = require('express');
 const cors = require('cors');
-// [BARU] Hapus require fs/ffmpeg manual jika ada, kita pakai service
 require('dotenv').config();
 
 let mainWindow;
@@ -16,13 +15,15 @@ if (!process.env.GEMINI_API_KEY) {
 
 function startAPIServer() {
     const apiApp = express();
-    // [BARU] Perbesar limit agar bisa upload video via JSON
+
+    // PENTING: Limit diperbesar menjadi 2GB untuk menangani upload video base64 yang besar
     apiApp.use(express.json({ limit: '2048mb' }));
     apiApp.use(express.urlencoded({ limit: '2048mb', extended: true }));
     apiApp.use(cors());
 
+    // Import Services
+    // Pastikan file src/backend/ai-service.js dan src/backend/video-service.js sudah ada
     const aiService = require('./src/backend/ai-service');
-    // [BARU] Import Video Service (pastikan file ini sudah dibuat di langkah 1)
     const videoService = require('./src/backend/video-service');
 
     // Health check
@@ -30,7 +31,11 @@ function startAPIServer() {
         res.json({ status: 'ok', timestamp: new Date().toISOString() });
     });
 
-    // Endpoint FITUR 1 (TEKS): Generate by command
+    // ==========================================
+    // FITUR 1: IMAGE GENERATION (Text & Ref)
+    // ==========================================
+
+    // Generate by command
     apiApp.post('/api/generate-by-command', async (req, res) => {
         try {
             const { prompt, sampleCount, isProductOnly, isConsistent } = req.body;
@@ -48,12 +53,12 @@ function startAPIServer() {
         }
     });
 
-    // Endpoint FITUR 1 (REFERENSI): Generate by Reference
+    // Generate by Reference
     apiApp.post('/api/generate-by-reference', async (req, res) => {
         try {
             const { referenceBase64, prompt, sampleCount } = req.body;
             if (!referenceBase64 || !prompt) {
-                return res.status(400).json({ success: false, error: 'referenceBase64 and prompt are required.' });
+                return res.status(400).json({ success: false, error: 'Required fields missing.' });
             }
             const result = await aiService.generateByReference(referenceBase64, prompt, sampleCount);
             if (result.success) {
@@ -66,7 +71,11 @@ function startAPIServer() {
         }
     });
 
-    // Endpoint FITUR 2 (Langkah 1): Segment Product
+    // ==========================================
+    // FITUR 2: PRODUCT SWAP & MODEL
+    // ==========================================
+
+    // Langkah 1: Segment Product
     apiApp.post('/api/segment-product', async (req, res) => {
         try {
             const { productBase64, segmentPrompt } = req.body;
@@ -84,7 +93,7 @@ function startAPIServer() {
         }
     });
 
-    // Endpoint FITUR 2 (Langkah 2): Generate Model from Product
+    // Langkah 2: Generate Model from Product
     apiApp.post('/api/generate-model-from-product', async (req, res) => {
         try {
             const { prompt, cleanProductBase64, sampleCount, mode, modelReferenceBase64 } = req.body;
@@ -104,12 +113,16 @@ function startAPIServer() {
         }
     });
 
-    // Endpoint FITUR 3 (Langkah A - Image-to-Text)
+    // ==========================================
+    // FITUR 3: IMAGE TO VIDEO (VEO)
+    // ==========================================
+
+    // Langkah A: Generate Video Prompt
     apiApp.post('/api/generate-video-prompt', async (req, res) => {
         try {
             const { productBase64, modelBase64, platform, duration } = req.body;
             if (!productBase64 || !modelBase64 || !platform || !duration) {
-                return res.status(400).json({ success: false, error: 'productBase64, modelBase64, platform, and duration are required.' });
+                return res.status(400).json({ success: false, error: 'Required fields missing.' });
             }
             const result = await aiService.generateVeoPrompt(productBase64, modelBase64, platform, duration);
             if (result.success) {
@@ -122,7 +135,7 @@ function startAPIServer() {
         }
     });
 
-    // Endpoint FITUR 3 (Langkah B - Placeholder)
+    // Langkah B: Generate Video (Placeholder)
     apiApp.post('/api/generate-video-from-image', async (req, res) => {
         try {
             const { prompt } = req.body;
@@ -136,14 +149,22 @@ function startAPIServer() {
         }
     });
 
-    // Endpoint FITUR 4 (Langkah A - Vision-to-Script)
+    // ==========================================
+    // FITUR 4: AUDIO GENERATOR & SCRIPT
+    // ==========================================
+
+    // Langkah A: Generate Audio Script (Updated with aiModel parameter)
     apiApp.post('/api/generate-audio-script', async (req, res) => {
         try {
-            const { productBase64, modelBase64, platform, duration } = req.body;
+            const { productBase64, modelBase64, platform, duration, aiModel } = req.body;
+
             if (!productBase64 || !modelBase64 || !platform || !duration) {
-                return res.status(400).json({ success: false, error: 'productBase64, modelBase64, platform, and duration are required.' });
+                return res.status(400).json({ success: false, error: 'Required fields missing.' });
             }
-            const result = await aiService.generateAudioScript(productBase64, modelBase64, platform, duration);
+
+            // Meneruskan parameter aiModel ('veo3' atau 'meta') ke AI Service
+            const result = await aiService.generateAudioScript(productBase64, modelBase64, platform, duration, aiModel);
+
             if (result.success) {
                 res.json({ success: true, data: { scriptData: result.scriptData } });
             } else {
@@ -154,7 +175,7 @@ function startAPIServer() {
         }
     });
 
-    // Endpoint FITUR 4 (Langkah B - Text-to-Speech)
+    // Langkah B: Generate Voiceover
     apiApp.post('/api/generate-voiceover', async (req, res) => {
         try {
             const { script, voiceName } = req.body;
@@ -172,7 +193,7 @@ function startAPIServer() {
         }
     });
 
-    // Endpoint FITUR 4 (Langkah C - Rekomendasi Musik)
+    // Langkah C: Rekomendasi Musik
     apiApp.post('/api/recommend-music', async (req, res) => {
         try {
             const { mood, script } = req.body;
@@ -190,7 +211,7 @@ function startAPIServer() {
         }
     });
 
-    // Endpoint FITUR 4 (Langkah D - Rekomendasi SFX)
+    // Langkah D: Rekomendasi SFX
     apiApp.post('/api/recommend-sfx', async (req, res) => {
         try {
             const { script } = req.body;
@@ -208,8 +229,10 @@ function startAPIServer() {
         }
     });
 
-    // --- [BARU] FITUR JOIN VIDEO ---
-    // Ini endpoint yang memanggil video-service.js
+    // ==========================================
+    // FITUR BARU: PRODUCTION - JOIN VIDEO
+    // ==========================================
+
     apiApp.post('/api/join-video', async (req, res) => {
         try {
             const { videos, voice, backsound, useBacksound } = req.body;
@@ -221,9 +244,9 @@ function startAPIServer() {
                 return res.status(400).json({ success: false, error: "Tidak ada video yang dikirim." });
             }
 
-            console.log(`Memproses ${videos.length} video...`);
+            console.log(`Memproses ${videos.length} video dengan FFmpeg...`);
 
-            // Panggil Video Service
+            // Panggil Video Service untuk memproses
             const videoBase64 = await videoService.processJoinVideo(videos, voice, backsound, useBacksound);
 
             res.json({
@@ -240,6 +263,7 @@ function startAPIServer() {
         }
     });
 
+    // Start Server
     apiServer = apiApp.listen(5000, () => {
         console.log('API Server running on http://localhost:5000');
     });
