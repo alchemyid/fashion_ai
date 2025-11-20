@@ -9,6 +9,71 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/styles.css">
+    <style>
+        /* Tambahan Style untuk Watermark Controls */
+        .watermark-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #f8fafc;
+            border: 1px solid var(--color-border);
+            border-radius: var(--border-radius);
+        }
+        .control-item label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--color-text);
+        }
+        .control-item select, .control-item input[type="range"], .control-item input[type="text"] {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid var(--color-border);
+            border-radius: 4px;
+        }
+        .opacity-value {
+            float: right;
+            font-size: 0.8rem;
+            color: var(--color-primary);
+            font-weight: bold;
+        }
+        /* Preview Watermark Kecil */
+        .watermark-preview-container {
+            margin-top: 0.5rem;
+            text-align: center;
+            display: none;
+            background: #eee; /* Checkerboard pattern simulation for transparency */
+            background-image: linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+        }
+        .watermark-preview-img {
+            max-height: 80px;
+            max-width: 100%;
+            object-fit: contain;
+        }
+        .btn-isolate {
+            background-color: #805ad5;
+            color: white;
+            border: none;
+            padding: 0.4rem 0.8rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            margin-top: 0.5rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+        .btn-isolate:hover { background-color: #6b46c1; }
+        .btn-isolate:disabled { background-color: #cbd5e0; cursor: not-allowed; }
+    </style>
 </head>
 <body>
 <div class="dashboard-layout">
@@ -17,7 +82,7 @@
     <main class="content">
         <div class="content-header">
             <h1><i class="fas fa-photo-video"></i> Join Video</h1>
-            <p>Gabungkan beberapa klip video, tambahkan voiceover, dan musik latar.</p>
+            <p>Gabungkan beberapa klip video, tambahkan voiceover, musik latar, dan watermark.</p>
         </div>
 
         <div class="feature-layout">
@@ -61,7 +126,7 @@
                     <!-- 3. Backsound Audio -->
                     <div class="form-group">
                         <label class="font-bold text-xl mb-2 block">3. Backsound Audio (Optional)</label>
-                        <p class="helper-text">Musik latar tambahan. Biarkan kosong jika tidak ada.</p>
+                        <p class="helper-text">Musik latar tambahan.</p>
 
                         <div id="backsoundUploadContainer">
                             <label for="backsoundInput" class="upload-box-compact">
@@ -72,6 +137,52 @@
                                 </div>
                                 <input type="file" id="backsoundInput" accept="audio/*">
                             </label>
+                        </div>
+                    </div>
+
+                    <!-- 4. Watermark (New Feature) -->
+                    <div class="form-group">
+                        <label class="font-bold text-xl mb-2 block">4. Watermark (Optional)</label>
+                        <p class="helper-text">Logo atau branding overlay.</p>
+
+                        <label for="watermarkInput" class="upload-box-compact">
+                            <div class="icon-side"><i class="fas fa-copyright"></i></div>
+                            <div class="text-side">
+                                <p>Upload Image Watermark</p>
+                                <span id="watermarkFileName">(PNG/JPG)</span>
+                            </div>
+                            <input type="file" id="watermarkInput" accept="image/png, image/jpeg">
+                        </label>
+
+                        <!-- Preview Watermark & Tombol Isolasi -->
+                        <div id="watermarkPreviewContainer" class="watermark-preview-container">
+                            <img id="watermarkPreview" class="watermark-preview-img" src="" alt="Watermark Preview">
+                            <div style="margin-top: 8px;">
+                                <div style="display:flex; gap: 5px; margin-bottom: 5px;">
+                                    <input type="text" id="watermarkPrompt" placeholder="Deskripsi (misal: logo, teks)" value="logo" style="flex:1; padding: 0.3rem; font-size: 0.8rem; border:1px solid #ccc; border-radius: 4px;">
+                                </div>
+                                <button type="button" id="isolateWatermarkBtn" class="btn-isolate">
+                                    <i class="fas fa-magic"></i> Remove Background (AI)
+                                </button>
+                                <p id="isolateStatus" style="font-size: 0.75rem; color: #666; margin-top: 4px; display: none;"></p>
+                            </div>
+                        </div>
+
+                        <div class="watermark-controls" id="watermarkSettings" style="display: none;">
+                            <div class="control-item">
+                                <label>Posisi</label>
+                                <select id="watermarkPosition">
+                                    <option value="top_right">Pojok Kanan Atas</option>
+                                    <option value="top_left">Pojok Kiri Atas</option>
+                                    <option value="bottom_right" selected>Pojok Kanan Bawah</option>
+                                    <option value="bottom_left">Pojok Kiri Bawah</option>
+                                    <option value="center">Tengah (Center)</option>
+                                </select>
+                            </div>
+                            <div class="control-item">
+                                <label>Opacity <span id="opacityValue" class="opacity-value">70%</span></label>
+                                <input type="range" id="watermarkOpacity" min="10" max="100" value="70">
+                            </div>
                         </div>
                     </div>
 

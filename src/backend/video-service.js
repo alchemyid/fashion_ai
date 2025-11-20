@@ -32,7 +32,6 @@ function getVideoDuration(filePath) {
  */
 function generateSilentFile(outputPath) {
     return new Promise((resolve, reject) => {
-        // Use a simple lavfi command to generate silence
         const args = [
             '-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100',
             '-t', '10',
@@ -43,8 +42,6 @@ function generateSilentFile(outputPath) {
         execFile(cleanFfmpegPath, args, (error, stdout, stderr) => {
             if (error) {
                 console.error("Error creating silent file:", stderr);
-                // Fallback: create a dummy file using a different method if lavfi fails system-wide
-                // But usually lavfi works for generation if not in complex filter
                 reject(error);
             } else {
                 resolve(outputPath);
@@ -54,7 +51,7 @@ function generateSilentFile(outputPath) {
 }
 
 /**
- * Helper: Add silent audio track to a video file using a physical silent file
+ * Helper: Add silent audio track to a video file
  */
 function addSilentAudio(inputPath, silentAudioPath, outputPath) {
     return new Promise((resolve, reject) => {
@@ -62,11 +59,11 @@ function addSilentAudio(inputPath, silentAudioPath, outputPath) {
             .input(inputPath)
             .input(silentAudioPath)
             .outputOptions([
-                '-map 0:v',     // Take video from input 0
-                '-map 1:a',     // Take audio from input 1 (silent file)
-                '-c:v copy',    // Copy video stream (fast)
-                '-c:a aac',     // Encode audio
-                '-shortest'     // Cut to shortest stream (video duration)
+                '-map 0:v',
+                '-map 1:a',
+                '-c:v copy',
+                '-c:a aac',
+                '-shortest'
             ])
             .save(outputPath)
             .on('end', () => resolve(outputPath))
@@ -90,31 +87,33 @@ function hasAudioStream(filePath) {
 }
 
 /**
- * MAIN FUNCTION: Join with XFADE Transitions
+ * MAIN FUNCTION: Join with XFADE Transitions + Audio Mixing + Watermark
+ * Update: Menambahkan parameter 'watermark'
  */
-async function processJoinVideo(videoFiles, voiceFile, backsoundFile, useBacksound) {
+async function processJoinVideo(videoFiles, voiceFile, backsoundFile, useBacksound, watermark) {
     const tempDir = path.join(os.tmpdir(), 'fashion-ai-video-proc', uuidv4());
     await fs.ensureDir(tempDir);
 
-    let processedVideos = []; // Array of { path, duration }
+    let processedVideos = [];
     let voicePath = null;
     let backsoundPath = null;
+    let watermarkPath = null;
+
     const silenceSourcePath = path.join(tempDir, 'silence_source.m4a');
     const outputPath = path.join(tempDir, 'output_final.mp4');
-    const TRANSITION_DURATION = 0.5; // Durasi transisi 1 detik
+    const TRANSITION_DURATION = 0.5;
 
     try {
-        console.log(`[VideoService] Processing ${videoFiles.length} videos with transitions...`);
+        console.log(`[VideoService] Processing ${videoFiles.length} videos...`);
 
         // 0. Generate Master Silence
         try {
             await generateSilentFile(silenceSourcePath);
         } catch (e) {
-            // Fatal if we can't make silence, as join will fail on silent videos
             throw new Error("Failed to initialize audio generator.");
         }
 
-        // 1. Prepare Videos (Save, Check Audio, Get Duration)
+        // 1. Prepare Videos
         for (let i = 0; i < videoFiles.length; i++) {
             const origPath = path.join(tempDir, `video_orig_${i}.mp4`);
             const fixedPath = path.join(tempDir, `video_fixed_${i}.mp4`);
@@ -125,13 +124,11 @@ async function processJoinVideo(videoFiles, voiceFile, backsoundFile, useBacksou
             const hasAudio = await hasAudioStream(origPath);
 
             if (!hasAudio) {
-                console.log(`Video ${i} no audio, adding silence.`);
                 try {
                     await addSilentAudio(origPath, silenceSourcePath, fixedPath);
                     finalVideoPath = fixedPath;
                 } catch (e) {
                     console.error(`Failed to fix audio for video ${i}.`, e);
-                    // If fix fails, we might crash later, but let's proceed with orig
                 }
             }
 
@@ -139,7 +136,7 @@ async function processJoinVideo(videoFiles, voiceFile, backsoundFile, useBacksou
             processedVideos.push({ path: finalVideoPath, duration: duration });
         }
 
-        // 2. Save Extra Audio
+        // 2. Save Extra Files
         if (voiceFile?.data) {
             voicePath = path.join(tempDir, 'voice.mp3');
             await fs.writeFile(voicePath, Buffer.from(voiceFile.data, 'base64'));
@@ -148,18 +145,23 @@ async function processJoinVideo(videoFiles, voiceFile, backsoundFile, useBacksou
             backsoundPath = path.join(tempDir, 'backsound.mp3');
             await fs.writeFile(backsoundPath, Buffer.from(backsoundFile.data, 'base64'));
         }
+        if (watermark?.data) {
+            watermarkPath = path.join(tempDir, 'watermark_img.png');
+            await fs.writeFile(watermarkPath, Buffer.from(watermark.data, 'base64'));
+        }
 
-        // 3. Build FFmpeg Command with XFADE
+        // 3. Build FFmpeg Command
         return new Promise((resolve, reject) => {
             let command = ffmpeg();
+
+            // Input Video Files
             processedVideos.forEach(v => command.input(v.path));
 
             const filterComplex = [];
             const count = processedVideos.length;
 
             // --- A. Normalize Inputs ---
-            // Scale all to 720x1280, reset PTS, resample audio
-            // Added 'fps=30' to ensure common frame rate for xfade
+            // Semua video di-scale ke 720x1280
             for (let i = 0; i < count; i++) {
                 filterComplex.push(`[${i}:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p[v${i}]`);
                 filterComplex.push(`[${i}:a]aresample=44100,asetpts=PTS-STARTPTS[a${i}]`);
@@ -173,37 +175,66 @@ async function processJoinVideo(videoFiles, voiceFile, backsoundFile, useBacksou
             for (let i = 1; i < count; i++) {
                 const prevDuration = processedVideos[i-1].duration;
 
-                // Offset Logic
-                // Simplification: We assume videos overlap by TRANSITION_DURATION
-                // So next video starts at: current_end - transition_duration
-
+                // PERBAIKAN: Menggunakan TRANSITION_DURATION yang benar
                 currentOffset += prevDuration - TRANSITION_DURATION;
 
-                // Safety check: if video is shorter than transition, force offset
                 if (currentOffset < 0) currentOffset = 0;
+
+                const offset = currentOffset;
 
                 const nextV = `[v${i}]`;
                 const nextA = `[a${i}]`;
                 const targetV = `[v_out${i}]`;
                 const targetA = `[a_out${i}]`;
 
-                // Video Transition (fade)
-                filterComplex.push(`${vLabel}${nextV}xfade=transition=fade:duration=${TRANSITION_DURATION}:offset=${currentOffset}${targetV}`);
-
-                // Audio Transition (crossfade)
+                filterComplex.push(`${vLabel}${nextV}xfade=transition=fade:duration=${TRANSITION_DURATION}:offset=${offset}${targetV}`);
                 filterComplex.push(`${aLabel}${nextA}acrossfade=d=${TRANSITION_DURATION}:c1=tri:c2=tri${targetA}`);
 
-                // Update label for next iteration
                 vLabel = targetV;
                 aLabel = targetA;
             }
 
-            // Final Labels
-            const finalV = count > 1 ? vLabel : '[v0]';
+            const finalV_joined = count > 1 ? vLabel : '[v0]';
             const finalA_raw = count > 1 ? aLabel : '[a0]';
 
-            // --- C. Mix Extra Audio ---
-            let nextInputIndex = count;
+            let nextInputIndex = count; // Index input selanjutnya untuk FFmpeg
+
+            // --- C. Watermark Logic ---
+            let finalV_output = finalV_joined; // Default output video jika tanpa watermark
+
+            if (watermarkPath) {
+                command.input(watermarkPath); // Input ke-(count)
+                const wmIndex = nextInputIndex;
+                nextInputIndex++;
+
+                // Hitung Opasitas (0-100 -> 0.0-1.0)
+                const opacityFactor = (watermark.opacity || 100) / 100;
+
+                // Hitung Koordinat Overlay
+                // W = width main, H = height main, w = width overlay, h = height overlay
+                // Margin 20px
+                let overlayCoord = "";
+                switch (watermark.position) {
+                    case 'top_left': overlayCoord = "x=20:y=20"; break;
+                    case 'top_right': overlayCoord = "x=main_w-overlay_w-20:y=20"; break;
+                    case 'bottom_left': overlayCoord = "x=20:y=main_h-overlay_h-20"; break;
+                    case 'bottom_right': overlayCoord = "x=main_w-overlay_w-20:y=main_h-overlay_h-20"; break;
+                    case 'center': overlayCoord = "x=(main_w-overlay_w)/2:y=(main_h-overlay_h)/2"; break;
+                    default: overlayCoord = "x=main_w-overlay_w-20:y=main_h-overlay_h-20"; // Default bottom right
+                }
+
+                // Filter Chain Watermark:
+                // 1. Scale watermark agar proporsional (misal lebar 200px)
+                // 2. Set transparansi menggunakan colorchannelmixer (aa = alpha)
+                filterComplex.push(`[${wmIndex}:v]scale=200:-1,format=rgba,colorchannelmixer=aa=${opacityFactor}[wm_ready]`);
+
+                // 3. Overlay ke video hasil join
+                filterComplex.push(`${finalV_joined}[wm_ready]overlay=${overlayCoord}[v_watermarked]`);
+
+                finalV_output = '[v_watermarked]';
+            }
+
+            // --- D. Audio Mixing ---
             let mixInputs = [finalA_raw];
             let mixCount = 1;
 
@@ -232,7 +263,7 @@ async function processJoinVideo(videoFiles, voiceFile, backsoundFile, useBacksou
             command
                 .complexFilter(filterComplex)
                 .outputOptions([
-                    '-map', finalV,
+                    '-map', finalV_output, // Map video akhir (dengan/tanpa watermark)
                     '-map', '[final_audio]',
                     '-c:v', 'libx264',
                     '-preset', 'ultrafast',
@@ -240,13 +271,13 @@ async function processJoinVideo(videoFiles, voiceFile, backsoundFile, useBacksou
                     '-shortest'
                 ])
                 .save(outputPath)
-                .on('start', (cmd) => console.log('FFmpeg XFADE Started:', cmd))
+                .on('start', (cmd) => console.log('FFmpeg Started:', cmd))
                 .on('error', (err) => {
-                    console.error('FFmpeg XFADE Error:', err);
+                    console.error('FFmpeg Error:', err);
                     reject(err);
                 })
                 .on('end', async () => {
-                    console.log('FFmpeg XFADE Finished');
+                    console.log('FFmpeg Finished');
                     try {
                         const buf = await fs.readFile(outputPath);
                         const b64 = buf.toString('base64');

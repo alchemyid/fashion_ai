@@ -260,10 +260,14 @@ function startAPIServer() {
 
     apiApp.post('/api/join-video', async (req, res) => {
         try {
-            const { videos, voice, backsound, useBacksound } = req.body;
+            // UPDATE: Menambahkan parameter 'watermark' dari request body
+            const { videos, voice, backsound, useBacksound, watermark } = req.body;
 
             console.log("--- Menerima Request Join Video ---");
             console.log(`Jumlah Video: ${videos ? videos.length : 0}`);
+            if (watermark) {
+                console.log(`Watermark: Yes (${watermark.position}, ${watermark.opacity}%)`);
+            }
 
             if (!videos || videos.length === 0) {
                 return res.status(400).json({ success: false, error: "Tidak ada video yang dikirim." });
@@ -271,8 +275,8 @@ function startAPIServer() {
 
             console.log(`Memproses ${videos.length} video dengan FFmpeg...`);
 
-            // Panggil Video Service untuk memproses
-            const videoBase64 = await videoService.processJoinVideo(videos, voice, backsound, useBacksound);
+            // Panggil Video Service untuk memproses (update argumen)
+            const videoBase64 = await videoService.processJoinVideo(videos, voice, backsound, useBacksound, watermark);
 
             res.json({
                 success: true,

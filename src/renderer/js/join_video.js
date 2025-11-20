@@ -6,8 +6,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const voiceFileName = document.getElementById('voiceFileName');
     const backsoundInput = document.getElementById('backsoundInput');
     const backsoundFileName = document.getElementById('backsoundFileName');
-    // HAPUS: const backsoundToggle = document.getElementById('backsoundToggle');
-    const backsoundUploadContainer = document.getElementById('backsoundUploadContainer');
+
+    // Watermark Elements
+    const watermarkInput = document.getElementById('watermarkInput');
+    const watermarkFileName = document.getElementById('watermarkFileName');
+    const watermarkSettings = document.getElementById('watermarkSettings');
+    const watermarkPosition = document.getElementById('watermarkPosition');
+    const watermarkOpacity = document.getElementById('watermarkOpacity');
+    const opacityValue = document.getElementById('opacityValue');
+
+    // Watermark AI Elements
+    const watermarkPreviewContainer = document.getElementById('watermarkPreviewContainer');
+    const watermarkPreview = document.getElementById('watermarkPreview');
+    const isolateWatermarkBtn = document.getElementById('isolateWatermarkBtn');
+    const watermarkPrompt = document.getElementById('watermarkPrompt');
+    const isolateStatus = document.getElementById('isolateStatus');
+
     const processButton = document.getElementById('processButton');
     const joinVideoForm = document.getElementById('joinVideoForm');
 
@@ -22,6 +36,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let videoFiles = []; // Array untuk menyimpan file video sesuai urutan
     let voiceFile = null;
     let backsoundFile = null;
+    let watermarkData = null; // Menyimpan Base64 watermark (bisa berubah setelah isolasi)
+    let watermarkName = null; // Nama file
 
     // --- FUNCTIONS ---
 
@@ -82,8 +98,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. Video Input
     videoInput.addEventListener('change', (e) => {
         const newFiles = Array.from(e.target.files);
-
-        // Validasi ekstensi mp4
         const validFiles = newFiles.filter(f => f.type === 'video/mp4' || f.name.toLowerCase().endsWith('.mp4'));
 
         if (newFiles.length !== validFiles.length) {
@@ -93,12 +107,10 @@ document.addEventListener('DOMContentLoaded', () => {
         videoFiles = [...videoFiles, ...validFiles];
         updateVideoList();
         checkProcessButtonState();
-
-        // Reset input agar bisa pilih file yang sama lagi jika perlu
         videoInput.value = '';
     });
 
-    // 2. Voice Input
+    // 2. Audio Inputs
     voiceInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (file) {
@@ -108,7 +120,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // 3. Backsound Input (Tanpa Toggle)
     backsoundInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (file) {
@@ -116,6 +127,76 @@ document.addEventListener('DOMContentLoaded', () => {
             backsoundFileName.textContent = file.name;
             backsoundFileName.classList.add('file-selected');
         }
+    });
+
+    // 3. Watermark Input & Controls
+    watermarkInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            try {
+                const b64 = await fileToBase64(file);
+                watermarkData = b64;
+                watermarkName = file.name;
+
+                watermarkFileName.textContent = file.name;
+                watermarkFileName.classList.add('file-selected');
+                watermarkSettings.style.display = 'grid';
+
+                // Update Preview
+                watermarkPreviewContainer.style.display = 'block';
+                watermarkPreview.src = `data:image/png;base64,${b64}`;
+                isolateStatus.style.display = 'none';
+            } catch (err) {
+                console.error(err);
+            }
+        } else {
+            watermarkSettings.style.display = 'none';
+            watermarkPreviewContainer.style.display = 'none';
+        }
+    });
+
+    // === FEATURE BARU: ISOLATE WATERMARK ===
+    isolateWatermarkBtn.addEventListener('click', async () => {
+        if (!watermarkData) return;
+
+        const prompt = watermarkPrompt.value || "logo";
+
+        isolateWatermarkBtn.disabled = true;
+        isolateWatermarkBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Removing Background...';
+        isolateStatus.style.display = 'block';
+        isolateStatus.textContent = 'Memproses AI...';
+        isolateStatus.style.color = '#666';
+
+        try {
+            const response = await window.electron.invoke('/api/segment-product', {
+                productBase64: watermarkData,
+                segmentPrompt: prompt
+            });
+
+            if (response.success && response.data.imageBase64) {
+                // Update data watermark dengan versi transparan
+                watermarkData = response.data.imageBase64;
+
+                // Update Preview UI
+                watermarkPreview.src = `data:image/png;base64,${watermarkData}`;
+                isolateStatus.textContent = 'Berhasil! Background dihapus.';
+                isolateStatus.style.color = 'green';
+                watermarkFileName.textContent = "isolated_" + watermarkName;
+            } else {
+                throw new Error(response.error || 'Gagal menghapus background.');
+            }
+        } catch (error) {
+            console.error(error);
+            isolateStatus.textContent = 'Error: ' + error.message;
+            isolateStatus.style.color = 'red';
+        } finally {
+            isolateWatermarkBtn.disabled = false;
+            isolateWatermarkBtn.innerHTML = '<i class="fas fa-magic"></i> Remove Background (AI)';
+        }
+    });
+
+    watermarkOpacity.addEventListener('input', (e) => {
+        opacityValue.textContent = `${e.target.value}%`;
     });
 
     // 4. Process Form
@@ -145,26 +226,31 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 200);
 
         try {
-            // Persiapkan Data
+            // Persiapkan Data Video
             const videoPayloads = await Promise.all(videoFiles.map(async (file) => ({
                 name: file.name,
                 data: await fileToBase64(file)
             })));
 
+            // Persiapkan Audio
             let voicePayload = null;
             if (voiceFile) {
-                voicePayload = {
-                    name: voiceFile.name,
-                    data: await fileToBase64(voiceFile)
-                };
+                voicePayload = { name: voiceFile.name, data: await fileToBase64(voiceFile) };
             }
 
             let backsoundPayload = null;
-            // Logic baru: Jika ada file backsound, maka otomatis digunakan
             if (backsoundFile) {
-                backsoundPayload = {
-                    name: backsoundFile.name,
-                    data: await fileToBase64(backsoundFile)
+                backsoundPayload = { name: backsoundFile.name, data: await fileToBase64(backsoundFile) };
+            }
+
+            // Persiapkan Watermark (Gunakan watermarkData yang mungkin sudah di-isolate)
+            let watermarkPayload = null;
+            if (watermarkData) {
+                watermarkPayload = {
+                    name: watermarkName || 'watermark.png',
+                    data: watermarkData, // Ini base64 string
+                    position: watermarkPosition.value,
+                    opacity: parseInt(watermarkOpacity.value, 10)
                 };
             }
 
@@ -173,7 +259,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 videos: videoPayloads,
                 voice: voicePayload,
                 backsound: backsoundPayload,
-                useBacksound: !!backsoundFile // Otomatis true jika file ada
+                useBacksound: !!backsoundFile,
+                watermark: watermarkPayload
             };
 
             // Panggil API Backend
@@ -194,7 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
 
                 downloadBtn.href = videoSrc;
-                downloadBtn.download = 'joined_video_output.mp4';
+                downloadBtn.download = 'joined_video_watermarked.mp4';
                 downloadBtn.style.display = 'inline-flex';
             } else {
                 throw new Error(response.error || 'Gagal memproses video.');
