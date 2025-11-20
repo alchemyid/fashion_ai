@@ -23,8 +23,8 @@
       "app.asar",
       "assets/**/*",
       "!src",
-      "!dist",
-      "!obf"
+      "!obf",
+      "!dist"
     ],
     "win": {
       "target": ["nsis"],
