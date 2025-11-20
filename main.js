@@ -230,6 +230,31 @@ function startAPIServer() {
     });
 
     // ==========================================
+    // FITUR 5: CAPTION & HASHTAG
+    // ==========================================
+
+    apiApp.post('/api/generate-caption-hashtags', async (req, res) => {
+        try {
+            const { platform, productBase64, modelBase64, keywords } = req.body;
+
+            // Validasi minimal satu gambar ada
+            if (!productBase64 && !modelBase64) {
+                return res.status(400).json({ success: false, error: 'At least one image (product or model) is required.' });
+            }
+
+            const result = await aiService.generateCaptionAndHashtags(platform, productBase64, modelBase64, keywords);
+
+            if (result.success) {
+                res.json({ success: true, data: result.data });
+            } else {
+                res.status(500).json({ success: false, error: result.error });
+            }
+        } catch (error) {
+            res.status(500).json({ success: false, error: error.message });
+        }
+    });
+
+    // ==========================================
     // FITUR BARU: PRODUCTION - JOIN VIDEO
     // ==========================================
 
