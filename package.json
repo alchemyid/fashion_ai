@@ -9,7 +9,8 @@
     "obfuscate": "node protect.js",
     "build:win": "npm run clean && npm run obfuscate && electron-builder --win",
     "build:mac": "npm run clean && npm run obfuscate && electron-builder --mac",
-    "build:linux": "npm run clean && npm run obfuscate && electron-builder --linux"
+    "build:linux": "npm run clean && npm run obfuscate && electron-builder --linux",
+    "start": "electron . --no-sandbox"
   },
   "build": {
     "appId": "com.fashionai.generator",
