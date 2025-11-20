@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const express = require('express');
 const cors = require('cors');
+// [BARU] Hapus require fs/ffmpeg manual jika ada, kita pakai service
 require('dotenv').config();
 
 let mainWindow;
@@ -15,10 +16,14 @@ if (!process.env.GEMINI_API_KEY) {
 
 function startAPIServer() {
     const apiApp = express();
-    apiApp.use(express.json({ limit: '50mb' }));
+    // [BARU] Perbesar limit agar bisa upload video via JSON
+    apiApp.use(express.json({ limit: '2048mb' }));
+    apiApp.use(express.urlencoded({ limit: '2048mb', extended: true }));
     apiApp.use(cors());
 
     const aiService = require('./src/backend/ai-service');
+    // [BARU] Import Video Service (pastikan file ini sudah dibuat di langkah 1)
+    const videoService = require('./src/backend/video-service');
 
     // Health check
     apiApp.get('/api/health', (req, res) => {
@@ -60,7 +65,6 @@ function startAPIServer() {
             res.status(500).json({ success: false, error: error.message });
         }
     });
-
 
     // Endpoint FITUR 2 (Langkah 1): Segment Product
     apiApp.post('/api/segment-product', async (req, res) => {
@@ -204,6 +208,37 @@ function startAPIServer() {
         }
     });
 
+    // --- [BARU] FITUR JOIN VIDEO ---
+    // Ini endpoint yang memanggil video-service.js
+    apiApp.post('/api/join-video', async (req, res) => {
+        try {
+            const { videos, voice, backsound, useBacksound } = req.body;
+
+            console.log("--- Menerima Request Join Video ---");
+            console.log(`Jumlah Video: ${videos ? videos.length : 0}`);
+
+            if (!videos || videos.length === 0) {
+                return res.status(400).json({ success: false, error: "Tidak ada video yang dikirim." });
+            }
+
+            console.log(`Memproses ${videos.length} video...`);
+
+            // Panggil Video Service
+            const videoBase64 = await videoService.processJoinVideo(videos, voice, backsound, useBacksound);
+
+            res.json({
+                success: true,
+                message: "Video berhasil digabungkan.",
+                data: {
+                    videoBase64: videoBase64
+                }
+            });
+
+        } catch (error) {
+            console.error('Join Video Error:', error);
+            res.status(500).json({ success: false, error: error.message });
+        }
+    });
 
     apiServer = apiApp.listen(5000, () => {
         console.log('API Server running on http://localhost:5000');
@@ -228,7 +263,7 @@ function createWindow() {
     mainWindow.loadFile('src/renderer/index.html');
 
     if (process.env.NODE_ENV !== 'production') {
-        mainWindow.webContents.openDevTools({ mode: 'detach' });
+        // mainWindow.webContents.openDevTools({ mode: 'detach' });
     }
 
     mainWindow.on('closed', () => {

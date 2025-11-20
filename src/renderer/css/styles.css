@@ -467,3 +467,232 @@ body {
         margin-left: 70px;
     }
 }
+/* ... (Isi file yang sudah ada) ... */
+
+/* --- Styling Khusus untuk Join Video --- */
+
+.upload-box-wide {
+    background: #f9fafb;
+    border: 2px dashed var(--color-border);
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: 100%;
+    display: block;
+    margin-bottom: 1rem;
+}
+
+.upload-box-wide:hover {
+    border-color: var(--color-primary);
+    background: #eff6ff;
+}
+
+.upload-box-wide i {
+    font-size: 1.5rem;
+    color: var(--color-primary);
+    margin-bottom: 0.5rem;
+}
+
+.upload-box-compact {
+    background: #ffffff;
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.upload-box-compact:hover {
+    border-color: var(--color-primary);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+.upload-box-compact .icon-side i {
+    font-size: 1.2rem;
+    color: var(--color-primary);
+}
+
+.upload-box-compact .text-side {
+    flex: 1;
+}
+
+.upload-box-compact .text-side p {
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-bottom: 0;
+    color: var(--color-text);
+}
+
+.upload-box-compact .text-side span {
+    font-size: 0.8rem;
+    color: var(--color-text-light);
+}
+
+.upload-box-compact .text-side span.file-selected {
+    color: var(--color-success);
+    font-weight: 500;
+}
+
+.upload-box-wide input, .upload-box-compact input {
+    display: none;
+}
+
+/* Disabled state for upload box */
+.disabled-upload .upload-box-compact {
+    background-color: #f3f4f6;
+    border-color: #e5e7eb;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+.disabled-upload .upload-box-compact:hover {
+    border-color: #e5e7eb;
+    box-shadow: none;
+}
+
+/* Video List Item */
+.video-list-container {
+    max-height: 250px;
+    overflow-y: auto;
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+    background: #fff;
+}
+
+.video-list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #f0f0f0;
+    transition: background 0.2s;
+}
+
+.video-list-item:last-child {
+    border-bottom: none;
+}
+
+.video-list-item:hover {
+    background: #f9fafb;
+}
+
+.video-list-item .file-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    overflow: hidden;
+}
+
+.video-list-item .file-order {
+    background: var(--color-primary);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 4px;
+    min-width: 24px;
+    text-align: center;
+}
+
+.video-list-item .file-name {
+    font-size: 0.9rem;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px;
+}
+
+.video-list-item .file-size {
+    font-size: 0.8rem;
+    color: var(--color-text-light);
+}
+
+.video-list-item .remove-btn {
+    background: none;
+    border: none;
+    color: #9ca3af;
+    cursor: pointer;
+    padding: 0.25rem;
+    transition: color 0.2s;
+}
+
+.video-list-item .remove-btn:hover {
+    color: var(--color-error);
+}
+
+.empty-state {
+    padding: 2rem;
+    text-align: center;
+    color: var(--color-text-light);
+    font-style: italic;
+    font-size: 0.9rem;
+}
+
+/* Toggle Header Alignment */
+.flex-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+.flex-header label {
+    margin-bottom: 0;
+}
+
+/* Progress Bar */
+.progress-container {
+    text-align: center;
+    padding: 1rem;
+}
+.progress-bar-bg {
+    width: 100%;
+    height: 10px;
+    background-color: #e2e8f0;
+    border-radius: 5px;
+    margin: 10px 0;
+    overflow: hidden;
+}
+.progress-bar-fill {
+    height: 100%;
+    background-color: var(--color-primary);
+    transition: width 0.3s ease;
+}
+
+/* Result Placeholder */
+.placeholder-state {
+    padding: 3rem 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-light);
+}
+.placeholder-state i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
+/* UPDATE: Limit Ukuran Preview Video Hasil */
+#videoResultDisplay video {
+    width: auto;           /* Biarkan lebar menyesuaikan rasio */
+    height: auto;          /* Biarkan tinggi menyesuaikan rasio */
+    max-width: 400px;      /* Lebar maksimal 400px */
+    max-height: 600px;     /* Tinggi maksimal 600px */
+    border-radius: var(--border-radius);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+#videoResultDisplay {
+    /* Pastikan container fleksibel menampung video kecil */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #e2e8f0;
+    padding: 1rem;
+    min-height: 300px; /* Tinggi minimal agar terlihat rapi */
+}
