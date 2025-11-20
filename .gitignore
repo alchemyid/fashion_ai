@@ -20,3 +20,5 @@ env/
 app
 obf
 app.asar
+app_build
+build.log

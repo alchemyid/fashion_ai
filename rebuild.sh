@@ -15,27 +15,7 @@ echo "=============================="
 echo "  Fashion AI Build Script"
 echo "=============================="
 
-# 1. Cleanup
-echo "> Cleaning old build folders..."
-rm -rf dist app-obf app.asar
-
-# 2. Run Obfuscation
-echo "> Running JavaScript Obfuscator..."
-npm run obfuscate
-if [ $? -ne 0 ]; then
-    echo "❌ Obfuscation failed!"
-    exit 1
-fi
-
-# 3. Prepare ASAR (optional)
-echo "> Creating app.asar..."
-npx asar pack app-obf app.asar
-if [ $? -ne 0 ]; then
-    echo "❌ Failed creating app.asar!"
-    exit 1
-fi
-
-# 4. Build Platform
+# Build Platform (Script npm sudah mencakup clean & obfuscate)
 case $TARGET in
     linux)
         echo "> Building for Linux..."
@@ -55,11 +35,16 @@ case $TARGET in
         ;;
 esac
 
-# 5. Logging
-DATE=$(date +"%Y-%m-%d %H:%M:%S")
-echo "Build Finished at: $DATE" >> build.log
-
-echo ""
-echo "=============================="
-echo "  ✅ Build Completed"
-echo "=============================="
+# Logging status
+if [ $? -eq 0 ]; then
+    DATE=$(date +"%Y-%m-%d %H:%M:%S")
+    echo "Build Success: $TARGET at $DATE" >> build.log
+    echo ""
+    echo "=============================="
+    echo "  ✅ Build Completed Successfully"
+    echo "  📁 Check folder 'dist' for results"
+    echo "=============================="
+else
+    echo "❌ Build Failed!"
+    exit 1
+fi

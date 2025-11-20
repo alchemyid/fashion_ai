@@ -1,61 +1,53 @@
 {
   "name": "fashion-ai-generator",
   "version": "1.0.0",
+  "author": "Fashion AI Team <info@girirahayu.id>",
   "description": "AI Fashion Image Generator",
   "main": "main.js",
-
   "scripts": {
-    "clean": "rm -rf dist app && mkdir app",
-    "obfuscate": "javascript-obfuscator src --output app --config obf.json",
-    "asar": "asar pack app app.asar",
-    "prebuild": "npm run clean && npm run obfuscate && npm run asar",
-    "start": "electron . --no-sandbox",
-    "build:win": "npm run prebuild && electron-builder --win",
-    "build:mac": "npm run prebuild && electron-builder --mac",
-    "build:linux": "npm run prebuild && electron-builder --linux"
+    "clean": "rm -rf dist app_build app.asar",
+    "obfuscate": "node protect.js",
+    "build:win": "npm run clean && npm run obfuscate && electron-builder --win",
+    "build:mac": "npm run clean && npm run obfuscate && electron-builder --mac",
+    "build:linux": "npm run clean && npm run obfuscate && electron-builder --linux"
   },
-
   "build": {
-    "asar": true,
     "appId": "com.fashionai.generator",
     "productName": "Fashion AI Generator",
+    "asar": true,
+    "directories": {
+      "app": "app_build",
+      "output": "dist"
+    },
     "files": [
-      "app.asar",
-      "assets/**/*",
-      "!src",
-      "!obf",
-      "!dist"
+      "**/*"
+    ],
+    "extraResources": [
+      ".env.example"
+    ],
+    "asarUnpack": [
+      "**/*.node",
+      "**/node_modules/ffmpeg-static/**",
+      "**/node_modules/ffprobe-static/**"
     ],
     "win": {
       "target": ["nsis"],
-      "icon": "assets/icons/icon.ico"
+      "icon": "assets/icons/icon.png"
     },
     "mac": {
       "target": ["dmg"],
-      "icon": "assets/icons/icon.icns",
-      "category": "public.app-category.graphics-design"
+      "icon": "assets/icons/icon.png"
     },
     "linux": {
       "target": ["AppImage","deb"],
-      "icon": "assets/icons/icon.png",
-      "category": "Graphics"
+      "maintainer": "Fashion AI Team <info@girirahayu.id>",
+      "icon": "assets/icons/icon.png"
     },
-    "asarUnpack": [
-      "**/*.node"
-    ],
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
     }
   },
-
-  "devDependencies": {
-    "asar": "^3.2.0",
-    "electron": "^33.0.0",
-    "electron-builder": "^25.1.8",
-    "javascript-obfuscator": "^4.1.1"
-  },
-
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
     "cors": "^2.8.5",
@@ -68,5 +60,10 @@
     "fs-extra": "^11.3.2",
     "node-fetch": "^2.6.7",
     "uuid": "^8.3.2"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8",
+    "javascript-obfuscator": "^4.1.1"
   }
 }
