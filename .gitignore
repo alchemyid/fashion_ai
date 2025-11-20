@@ -17,3 +17,6 @@ env/
 .python-version
 .idea/
 *.sock
+app
+obf
+app.asar

@@ -1,0 +1,10 @@
+{
+  "compact": true,
+  "controlFlowFlattening": true,
+  "stringArray": true,
+  "stringArrayEncoding": ["base64"],
+  "selfDefending": true,
+  "disableConsoleOutput": true,
+  "numbersToExpressions": true,
+  "simplify": true
+}
