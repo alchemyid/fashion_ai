@@ -1,39 +1,41 @@
 const ffmpeg = require('fluent-ffmpeg');
 const ffmpegPath = require('ffmpeg-static');
+const ffprobePath = require('ffprobe-static').path;
 const fs = require('fs-extra');
 const path = require('path');
 const os = require('os');
 const { v4: uuidv4 } = require('uuid');
 const { execFile } = require('child_process');
 
-// Set path binary FFmpeg
+// Set path binary
 const cleanFfmpegPath = ffmpegPath.replace('app.asar', 'app.asar.unpacked');
+const cleanFfprobePath = ffprobePath.replace('app.asar', 'app.asar.unpacked');
+
 ffmpeg.setFfmpegPath(cleanFfmpegPath);
+ffmpeg.setFfprobePath(cleanFfprobePath);
 
 /**
- * Helper: Check if file has audio stream using ffprobe/ffmpeg
+ * Helper: Get video duration in seconds
  */
-function hasAudioStream(filePath) {
-    return new Promise((resolve) => {
-        execFile(cleanFfmpegPath, ['-i', filePath], (error, stdout, stderr) => {
-            const output = stderr || stdout || '';
-            const hasAudio = /Stream #\d+:\d+.*Audio:/.test(output);
-            resolve(hasAudio);
+function getVideoDuration(filePath) {
+    return new Promise((resolve, reject) => {
+        ffmpeg.ffprobe(filePath, (err, metadata) => {
+            if (err) return reject(err);
+            const duration = metadata.format.duration;
+            resolve(parseFloat(duration));
         });
     });
 }
 
 /**
  * Helper: Generate a physical silent audio file (10 seconds)
- * This is safer than using lavfi/aevalsrc inside complex filters.
  */
 function generateSilentFile(outputPath) {
     return new Promise((resolve, reject) => {
-        // Using -f lavfi -i anullsrc is the standard CLI way.
-        // If that fails, we can try a simpler approach or assumes lavfi works as input format but not inside filter_complex
+        // Use a simple lavfi command to generate silence
         const args = [
             '-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100',
-            '-t', '10', // 10 seconds duration
+            '-t', '10',
             '-c:a', 'aac',
             '-y', outputPath
         ];
@@ -41,6 +43,8 @@ function generateSilentFile(outputPath) {
         execFile(cleanFfmpegPath, args, (error, stdout, stderr) => {
             if (error) {
                 console.error("Error creating silent file:", stderr);
+                // Fallback: create a dummy file using a different method if lavfi fails system-wide
+                // But usually lavfi works for generation if not in complex filter
                 reject(error);
             } else {
                 resolve(outputPath);
@@ -74,150 +78,181 @@ function addSilentAudio(inputPath, silentAudioPath, outputPath) {
 }
 
 /**
- * Main Function: Join Video
+ * Helper: Check audio stream
+ */
+function hasAudioStream(filePath) {
+    return new Promise((resolve) => {
+        execFile(cleanFfmpegPath, ['-i', filePath], (error, stdout, stderr) => {
+            const output = stderr || stdout || '';
+            resolve(/Stream #\d+:\d+.*Audio:/.test(output));
+        });
+    });
+}
+
+/**
+ * MAIN FUNCTION: Join with XFADE Transitions
  */
 async function processJoinVideo(videoFiles, voiceFile, backsoundFile, useBacksound) {
     const tempDir = path.join(os.tmpdir(), 'fashion-ai-video-proc', uuidv4());
     await fs.ensureDir(tempDir);
 
-    let inputVideoPaths = [];
+    let processedVideos = []; // Array of { path, duration }
     let voicePath = null;
     let backsoundPath = null;
-    // Path for a shared silent audio source file
     const silenceSourcePath = path.join(tempDir, 'silence_source.m4a');
     const outputPath = path.join(tempDir, 'output_final.mp4');
+    const TRANSITION_DURATION = 1; // Durasi transisi 1 detik
 
     try {
-        console.log(`[VideoService] Processing ${videoFiles.length} videos in: ${tempDir}`);
+        console.log(`[VideoService] Processing ${videoFiles.length} videos with transitions...`);
 
-        // 0. Generate a silent audio file once
+        // 0. Generate Master Silence
         try {
             await generateSilentFile(silenceSourcePath);
         } catch (e) {
-            console.error("Failed to generate silence file. FFmpeg lavfi issue?");
-            throw new Error("System FFmpeg cannot generate silence. " + e.message);
+            // Fatal if we can't make silence, as join will fail on silent videos
+            throw new Error("Failed to initialize audio generator.");
         }
 
-        // 1. Save Video Files & Pre-process (Check Audio)
+        // 1. Prepare Videos (Save, Check Audio, Get Duration)
         for (let i = 0; i < videoFiles.length; i++) {
-            const originalPath = path.join(tempDir, `video_orig_${i}.mp4`);
-            const finalPath = path.join(tempDir, `video_${i}.mp4`);
+            const origPath = path.join(tempDir, `video_orig_${i}.mp4`);
+            const fixedPath = path.join(tempDir, `video_fixed_${i}.mp4`);
 
-            // Write base64 to disk
-            await fs.writeFile(originalPath, Buffer.from(videoFiles[i].data, 'base64'));
+            await fs.writeFile(origPath, Buffer.from(videoFiles[i].data, 'base64'));
 
-            // Check audio
-            const hasAudio = await hasAudioStream(originalPath);
+            let finalVideoPath = origPath;
+            const hasAudio = await hasAudioStream(origPath);
 
-            if (hasAudio) {
-                inputVideoPaths.push(originalPath);
-            } else {
-                console.log(`[VideoService] Video ${i} has no audio. Adding silence...`);
+            if (!hasAudio) {
+                console.log(`Video ${i} no audio, adding silence.`);
                 try {
-                    // Merge original video with the pre-generated silent file
-                    await addSilentAudio(originalPath, silenceSourcePath, finalPath);
-                    inputVideoPaths.push(finalPath);
+                    await addSilentAudio(origPath, silenceSourcePath, fixedPath);
+                    finalVideoPath = fixedPath;
                 } catch (e) {
-                    console.error(`Failed to add silence to video ${i}, using original. Join might fail.`, e);
-                    inputVideoPaths.push(originalPath);
+                    console.error(`Failed to fix audio for video ${i}.`, e);
+                    // If fix fails, we might crash later, but let's proceed with orig
                 }
             }
+
+            const duration = await getVideoDuration(finalVideoPath);
+            processedVideos.push({ path: finalVideoPath, duration: duration });
         }
 
-        // 2. Save Voice File
-        if (voiceFile && voiceFile.data) {
+        // 2. Save Extra Audio
+        if (voiceFile?.data) {
             voicePath = path.join(tempDir, 'voice.mp3');
             await fs.writeFile(voicePath, Buffer.from(voiceFile.data, 'base64'));
         }
-
-        // 3. Save Backsound File
-        // Logic update: useBacksound is passed as true/false from frontend based on file presence
-        if (useBacksound && backsoundFile && backsoundFile.data) {
+        if (useBacksound && backsoundFile?.data) {
             backsoundPath = path.join(tempDir, 'backsound.mp3');
             await fs.writeFile(backsoundPath, Buffer.from(backsoundFile.data, 'base64'));
         }
 
-        // 4. Execute FFmpeg Join
+        // 3. Build FFmpeg Command with XFADE
         return new Promise((resolve, reject) => {
             let command = ffmpeg();
+            processedVideos.forEach(v => command.input(v.path));
 
-            // Input Videos
-            inputVideoPaths.forEach(vidPath => command.input(vidPath));
+            const filterComplex = [];
+            const count = processedVideos.length;
 
-            const complexFilter = [];
-            const videoCount = inputVideoPaths.length;
-
-            // A. Normalize Videos (Scale & Sample Rate)
-            for (let i = 0; i < videoCount; i++) {
-                // Scale to 720x1280 (Portrait) & Normalize Audio
-                complexFilter.push(`[${i}:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,setpts=PTS-STARTPTS[v${i}]`);
-                complexFilter.push(`[${i}:a]aresample=44100,asetpts=PTS-STARTPTS[a${i}]`);
+            // --- A. Normalize Inputs ---
+            // Scale all to 720x1280, reset PTS, resample audio
+            // Added 'fps=30' to ensure common frame rate for xfade
+            for (let i = 0; i < count; i++) {
+                filterComplex.push(`[${i}:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p[v${i}]`);
+                filterComplex.push(`[${i}:a]aresample=44100,asetpts=PTS-STARTPTS[a${i}]`);
             }
 
-            // B. Concatenate
-            let concatInputStr = '';
-            for (let i = 0; i < videoCount; i++) {
-                concatInputStr += `[v${i}][a${i}]`;
-            }
-            complexFilter.push(`${concatInputStr}concat=n=${videoCount}:v=1:a=1[vconc][aconc_raw]`);
+            // --- B. XFADE Logic ---
+            let currentOffset = 0;
+            let vLabel = '[v0]';
+            let aLabel = '[a0]';
 
-            // C. Audio Mixing
-            let audioMixInputs = ['[aconc_raw]'];
-            let nextInputIndex = videoCount;
-            let inputsToMix = 1; // Base is always the video audio (which we ensured exists)
+            for (let i = 1; i < count; i++) {
+                const prevDuration = processedVideos[i-1].duration;
+
+                // Offset Logic
+                // Simplification: We assume videos overlap by TRANSITION_DURATION
+                // So next video starts at: current_end - transition_duration
+
+                currentOffset += prevDuration - TRANSITION_DURATION;
+
+                // Safety check: if video is shorter than transition, force offset
+                if (currentOffset < 0) currentOffset = 0;
+
+                const nextV = `[v${i}]`;
+                const nextA = `[a${i}]`;
+                const targetV = `[v_out${i}]`;
+                const targetA = `[a_out${i}]`;
+
+                // Video Transition (fade)
+                filterComplex.push(`${vLabel}${nextV}xfade=transition=fade:duration=${TRANSITION_DURATION}:offset=${currentOffset}${targetV}`);
+
+                // Audio Transition (crossfade)
+                filterComplex.push(`${aLabel}${nextA}acrossfade=d=${TRANSITION_DURATION}:c1=tri:c2=tri${targetA}`);
+
+                // Update label for next iteration
+                vLabel = targetV;
+                aLabel = targetA;
+            }
+
+            // Final Labels
+            const finalV = count > 1 ? vLabel : '[v0]';
+            const finalA_raw = count > 1 ? aLabel : '[a0]';
+
+            // --- C. Mix Extra Audio ---
+            let nextInputIndex = count;
+            let mixInputs = [finalA_raw];
+            let mixCount = 1;
 
             if (voicePath) {
                 command.input(voicePath);
-                complexFilter.push(`[${nextInputIndex}:a]volume=1.5[voice_norm]`);
-                audioMixInputs.push('[voice_norm]');
+                filterComplex.push(`[${nextInputIndex}:a]volume=1.5[voice_norm]`);
+                mixInputs.push('[voice_norm]');
                 nextInputIndex++;
-                inputsToMix++;
+                mixCount++;
             }
-
             if (backsoundPath) {
                 command.input(backsoundPath);
-                complexFilter.push(`[${nextInputIndex}:a]volume=0.15[bgm_norm]`);
-                audioMixInputs.push('[bgm_norm]');
+                filterComplex.push(`[${nextInputIndex}:a]volume=0.15[bgm_norm]`);
+                mixInputs.push('[bgm_norm]');
                 nextInputIndex++;
-                inputsToMix++;
+                mixCount++;
             }
 
-            // Decide Output Audio
-            if (inputsToMix > 1) {
-                complexFilter.push(`${audioMixInputs.join('')}amix=inputs=${inputsToMix}:duration=first:dropout_transition=2[aout]`);
+            if (mixCount > 1) {
+                filterComplex.push(`${mixInputs.join('')}amix=inputs=${mixCount}:duration=first:dropout_transition=2[final_audio]`);
             } else {
-                // Simple rename if no mixing needed
-                complexFilter.push(`[aconc_raw]volume=1.0[aout]`);
+                filterComplex.push(`${finalA_raw}volume=1.0[final_audio]`);
             }
 
-            // D. Run
+            // --- EXECUTE ---
             command
-                .complexFilter(complexFilter)
+                .complexFilter(filterComplex)
                 .outputOptions([
-                    '-map [vconc]',
-                    '-map [aout]',
-                    '-c:v libx264',
-                    '-preset ultrafast',
-                    '-c:a aac',
-                    '-pix_fmt yuv420p',
+                    '-map', finalV,
+                    '-map', '[final_audio]',
+                    '-c:v', 'libx264',
+                    '-preset', 'ultrafast',
+                    '-c:a', 'aac',
                     '-shortest'
                 ])
                 .save(outputPath)
-                .on('start', (cmdLine) => console.log('FFmpeg Join Started...'))
+                .on('start', (cmd) => console.log('FFmpeg XFADE Started:', cmd))
                 .on('error', (err) => {
-                    console.error('FFmpeg Process Error:', err);
+                    console.error('FFmpeg XFADE Error:', err);
                     reject(err);
                 })
                 .on('end', async () => {
-                    console.log('FFmpeg Join Finished');
+                    console.log('FFmpeg XFADE Finished');
                     try {
-                        const videoBuffer = await fs.readFile(outputPath);
-                        const videoBase64 = videoBuffer.toString('base64');
+                        const buf = await fs.readFile(outputPath);
+                        const b64 = buf.toString('base64');
                         await fs.remove(tempDir);
-                        resolve(videoBase64);
-                    } catch (readErr) {
-                        reject(readErr);
-                    }
+                        resolve(b64);
+                    } catch (e) { reject(e); }
                 });
         });
 
