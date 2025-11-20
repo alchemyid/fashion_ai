@@ -114,6 +114,29 @@
             height: 100%;
             border-radius: var(--border-radius);
         }
+
+        /* Style untuk Radio Button Model AI (Sama seperti audio2video) */
+        .model-selector {
+            display: flex;
+            gap: 1.5rem;
+            margin-bottom: 1rem;
+            background: #fff;
+            padding: 1rem;
+            border: 1px solid var(--color-border);
+            border-radius: var(--border-radius);
+        }
+        .radio-label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            font-size: 0.95rem;
+        }
+        .radio-label input[type="radio"] {
+            accent-color: var(--color-primary);
+            width: 1.1rem;
+            height: 1.1rem;
+        }
     </style>
 </head>
 <body>
@@ -122,7 +145,7 @@
 
     <main class="content">
         <div class="content-header">
-            <h1><i class="fas fa-film"></i> Image to Video (Fitur 3)</h1>
+            <h1><i class="fas fa-film"></i> Image to Video</h1>
             <p>Menganimasikan gambar Anda menjadi video pendek untuk e-commerce</p>
         </div>
 
@@ -144,16 +167,28 @@
                         </select>
                     </div>
 
-                    <!-- **PERUBAHAN**: Langkah 2: Durasi (Kelipatan 8s) -->
+                    <!-- **BARU**: Pilihan Model Video AI -->
                     <div class="form-group">
-                        <label for="durationSelect" class="font-bold text-xl mb-4 block">Langkah 2: Tentukan Durasi VEO</label>
-                        <p class="helper-text">Pilih durasi target (VEO akan menghasilkan per 8 detik).</p>
+                        <label class="font-bold text-xl mb-2 block">Pilih Model Video AI</label>
+                        <p class="helper-text">Pilih model video generator target Anda untuk menyesuaikan durasi scene.</p>
+                        <div class="model-selector">
+                            <label class="radio-label">
+                                <input type="radio" name="aiModel" value="veo3" checked onchange="updateDurationOptions()">
+                                <span><b>VEO3</b> (Kelipatan 8 Detik)</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="aiModel" value="meta" onchange="updateDurationOptions()">
+                                <span><b>Meta AI</b> (Kelipatan 5 Detik)</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Langkah 2: Durasi (Dinamis) -->
+                    <div class="form-group">
+                        <label for="durationSelect" class="font-bold text-xl mb-4 block">Langkah 2: Tentukan Durasi Video</label>
+                        <p class="helper-text">Pilih durasi target berdasarkan model yang dipilih.</p>
                         <select id="durationSelect">
-                            <option value="8 detik">8 Detik (1 Klip VEO)</option>
-                            <option value="16 detik" selected>16 Detik (2 Klip VEO)</option>
-                            <option value="24 detik">24 Detik (3 Klip VEO)</option>
-                            <option value="32 detik">32 Detik (4 Klip VEO)</option>
-                            <option value="40 detik">40 Detik (5 Klip VEO)</option>
+                            <!-- Opsi akan diisi otomatis oleh JavaScript -->
                         </select>
                     </div>
 
@@ -181,13 +216,13 @@
                     <div class="form-group" style="text-align: center; margin-top: 2rem;">
                         <button type="button" class="btn-secondary" id="analyzeButton" disabled>
                             <i class="fas fa-wand-magic-sparkles"></i>
-                            Langkah 4: Generate Veo Prompt (Visual + Audio)
+                            Langkah 4: Generate Video Prompt (Visual + Audio)
                         </button>
                     </div>
 
                     <!-- Langkah 5: Prompt Teks (Bisa diedit) -->
                     <div class="form-group">
-                        <label for="prompt" class="font-bold text-xl mb-4 block">Langkah 5: Edit Prompt Video (untuk VEO)</label>
+                        <label for="prompt" class="font-bold text-xl mb-4 block">Langkah 5: Edit Prompt Video</label>
                         <p class="helper-text">AI akan merekomendasikan naskah sutradara lengkap di sini.</p>
                         <textarea id="prompt" name="prompt" placeholder="Naskah sutradara (VISUAL + VOICEOVER) akan muncul di sini..." required disabled style="min-height: 180px;"></textarea>
                     </div>
@@ -239,7 +274,7 @@
     // Cache Elemen
     const videoForm = document.getElementById('videoForm');
     const platformSelect = document.getElementById('platformSelect');
-    const durationSelect = document.getElementById('durationSelect'); // **BARU**: Cache durasi
+    const durationSelect = document.getElementById('durationSelect');
     const productImageInput = document.getElementById('productImageInput');
     const modelImageInput = document.getElementById('modelImageInput');
     const analyzeButton = document.getElementById('analyzeButton');
@@ -249,6 +284,28 @@
     const errorMessage = document.getElementById('errorMessage');
     const videoResultDisplay = document.getElementById('videoResultDisplay');
     const downloadVideoBtn = document.getElementById('downloadVideoBtn');
+
+    // === FUNGSI PENGATUR DURASI DINAMIS ===
+    function updateDurationOptions() {
+        const model = document.querySelector('input[name="aiModel"]:checked').value;
+        durationSelect.innerHTML = ''; // Kosongkan opsi saat ini
+
+        const step = model === 'veo3' ? 8 : 5;
+        const label = model === 'veo3' ? 'Klip VEO' : 'Klip Meta';
+        const maxClips = 5; // Maksimal 5 klip
+
+        for (let i = 1; i <= maxClips; i++) {
+            let seconds = step * i;
+            let option = document.createElement('option');
+            option.value = `${seconds} detik`;
+            option.text = `${seconds} Detik (${i} ${label})`;
+            if (i === 2) option.selected = true; // Default pilih 2 klip (16s atau 10s)
+            durationSelect.add(option);
+        }
+    }
+
+    // Inisialisasi opsi saat load
+    document.addEventListener('DOMContentLoaded', updateDurationOptions);
 
     // Fungsi helper untuk konversi file ke Base64
     function fileToBase64(file) {
@@ -303,10 +360,11 @@
         if (!productBase64 || !modelBase64) return;
 
         const platform = platformSelect.value;
-        const duration = durationSelect.value; // **PERUBAHAN**: Mengambil durasi 8s, 16s, dll.
+        const duration = durationSelect.value;
+        const aiModel = document.querySelector('input[name="aiModel"]:checked').value; // Ambil model AI
 
         loading.style.display = 'block';
-        loading.querySelector('p').innerHTML = '<i class="fas fa-spinner fa-spin"></i> AI sedang menganalisis & menulis naskah Veo...';
+        loading.querySelector('p').innerHTML = '<i class="fas fa-spinner fa-spin"></i> AI sedang menganalisis & menulis naskah video...';
         errorMessage.style.display = 'none';
         analyzeButton.disabled = true;
         generateButton.disabled = true;
@@ -314,7 +372,6 @@
         promptInput.value = "";
 
         try {
-            // **PERUBAHAN**: Memanggil endpoint yang benar
             const response = await fetch('http://localhost:5000/api/generate-video-prompt', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -322,13 +379,13 @@
                     productBase64: productBase64,
                     modelBase64: modelBase64,
                     platform: platform,
-                    duration: duration // Mengirim durasi (misal: "16 detik")
+                    duration: duration,
+                    aiModel: aiModel // Kirim model yang dipilih
                 })
             });
 
             const data = await response.json();
 
-            // **PERUBAHAN**: Respons sekarang adalah 'scriptData'
             if (data.success && data.data.scriptData && data.data.scriptData.fullScript) {
                 promptInput.value = data.data.scriptData.fullScript;
                 promptInput.disabled = false;
@@ -379,7 +436,9 @@
             if (data.success && data.data.videoBase64) {
                 // ... (Logika jika sukses, tidak akan terjadi)
             } else {
-                errorMessage.innerHTML = `<b>Fitur Dalam Pengembangan (VEO)</b><br>${data.error || 'API untuk Text-to-Video (Veo) belum tersedia.'}<br>Logika prompt Anda (naskah sutradara) sudah benar, namun eksekusi video belum dapat dilakukan.`;
+                const aiModel = document.querySelector('input[name="aiModel"]:checked').value;
+                const modelName = aiModel === 'veo3' ? 'Google Veo' : 'Meta AI';
+                errorMessage.innerHTML = `<b>Fitur Dalam Pengembangan (${modelName})</b><br>${data.error || `API untuk Text-to-Video (${modelName}) belum tersedia.`}<br>Logika prompt Anda sudah benar dan disesuaikan untuk durasi yang dipilih.`;
                 errorMessage.style.display = 'block';
                 videoResultDisplay.innerHTML = '<div><i class="fas fa-video-slash"></i><p>Hasil Video Akan Muncul Disini</p></div>';
             }

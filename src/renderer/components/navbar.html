@@ -28,10 +28,10 @@
                 <i class="fas fa-images"></i>
                 <span>By Reference</span>
             </a>
-            <a href="by_category.html" class="nav-item" data-page="by_category">
-                <i class="fas fa-th-large"></i>
-                <span>By Category</span>
-            </a>
+<!--            <a href="by_category.html" class="nav-item" data-page="by_category">-->
+<!--                <i class="fas fa-th-large"></i>-->
+<!--                <span>By Category</span>-->
+<!--            </a>-->
         </div>
 
         <div class="nav-item-parent" onclick="toggleSubmenu(this)">
@@ -42,10 +42,6 @@
             <i class="fas fa-chevron-down"></i>
         </div>
         <div class="nav-submenu">
-            <a href="caption_hashtag.html" class="nav-item" data-page="caption_hashtag">
-                <i class="fas fa-closed-captioning"></i>
-                <span>Caption & Hashtag</span>
-            </a>
             <a href="product_swap.html" class="nav-item" data-page="product_swap">
                 <i class="fas fa-random"></i>
                 <span>Product Swap</span>
@@ -57,6 +53,10 @@
             <a href="audio2video.html" class="nav-item" data-page="audio2video">
                 <i class="fas fa-music"></i>
                 <span>Audio 2 Video</span>
+            </a>
+            <a href="caption_hashtag.html" class="nav-item" data-page="caption_hashtag">
+                <i class="fas fa-closed-captioning"></i>
+                <span>Caption & Hashtag</span>
             </a>
         </div>
 
@@ -75,14 +75,14 @@
             </a>
         </div>
 
-        <a href="history.html" class="nav-item" data-page="history">
-            <i class="fas fa-history"></i>
-            <span>History</span>
-        </a>
-        <a href="settings.html" class="nav-item" data-page="settings">
-            <i class="fas fa-cog"></i>
-            <span>Settings</span>
-        </a>
+<!--        <a href="history.html" class="nav-item" data-page="history">-->
+<!--            <i class="fas fa-history"></i>-->
+<!--            <span>History</span>-->
+<!--        </a>-->
+<!--        <a href="settings.html" class="nav-item" data-page="settings">-->
+<!--            <i class="fas fa-cog"></i>-->
+<!--            <span>Settings</span>-->
+<!--        </a>-->
     </nav>
 
     <div class="sidebar-footer">
@@ -101,3 +101,25 @@
         </button>
     </div>
 </aside>
+<!-- Tambahkan di bagian bawah navbar.html sebelum </body> -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Ambil username dari localStorage
+        const username = localStorage.getItem('username');
+
+        if (username) {
+            const userNameElement = document.getElementById('userName');
+            if (userNameElement) {
+                userNameElement.textContent = username;
+            }
+        } else {
+            // Jika tidak ada session, redirect ke login
+            window.location.href = 'index.html';
+        }
+    });
+
+    function logout() {
+        localStorage.clear();
+        window.location.href = 'index.html';
+    }
+</script>

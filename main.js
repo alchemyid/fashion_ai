@@ -22,7 +22,6 @@ function startAPIServer() {
     apiApp.use(cors());
 
     // Import Services
-    // Pastikan file src/backend/ai-service.js dan src/backend/video-service.js sudah ada
     const aiService = require('./src/backend/ai-service');
     const videoService = require('./src/backend/video-service');
 
@@ -120,11 +119,13 @@ function startAPIServer() {
     // Langkah A: Generate Video Prompt
     apiApp.post('/api/generate-video-prompt', async (req, res) => {
         try {
-            const { productBase64, modelBase64, platform, duration } = req.body;
+            // UPDATE: Menerima aiModel dari request body
+            const { productBase64, modelBase64, platform, duration, aiModel } = req.body;
             if (!productBase64 || !modelBase64 || !platform || !duration) {
                 return res.status(400).json({ success: false, error: 'Required fields missing.' });
             }
-            const result = await aiService.generateVeoPrompt(productBase64, modelBase64, platform, duration);
+            // Meneruskan parameter aiModel ke service
+            const result = await aiService.generateVeoPrompt(productBase64, modelBase64, platform, duration, aiModel);
             if (result.success) {
                 res.json({ success: true, data: { scriptData: result.scriptData } });
             } else {
@@ -153,7 +154,7 @@ function startAPIServer() {
     // FITUR 4: AUDIO GENERATOR & SCRIPT
     // ==========================================
 
-    // Langkah A: Generate Audio Script (Updated with aiModel parameter)
+    // Langkah A: Generate Audio Script
     apiApp.post('/api/generate-audio-script', async (req, res) => {
         try {
             const { productBase64, modelBase64, platform, duration, aiModel } = req.body;
@@ -162,7 +163,6 @@ function startAPIServer() {
                 return res.status(400).json({ success: false, error: 'Required fields missing.' });
             }
 
-            // Meneruskan parameter aiModel ('veo3' atau 'meta') ke AI Service
             const result = await aiService.generateAudioScript(productBase64, modelBase64, platform, duration, aiModel);
 
             if (result.success) {

@@ -329,9 +329,10 @@ ${shotType.desc}
 
 
 /**
- * FITUR 3 (Langkah A): Generate VEO Prompt (8s)
+ * FITUR 3 (Langkah A): Generate Video Prompt
+ * UPDATE: Menambahkan parameter aiModel untuk durasi langkah (step) dinamis (8s atau 5s)
  */
-async function generateVeoPrompt(productBase64, modelBase64, platform, duration) {
+async function generateVeoPrompt(productBase64, modelBase64, platform, duration, aiModel) {
     if (!API_KEY) {
         return { success: false, error: "API Key tidak ditemukan." };
     }
@@ -345,17 +346,21 @@ async function generateVeoPrompt(productBase64, modelBase64, platform, duration)
         default: platformInstruction = "Gaya: Iklan general.";
     }
 
+    // [LOGIKA BARU] Tentukan durasi step berdasarkan model (default veo3 = 8s)
+    const step = (aiModel === 'meta') ? 5 : 8;
+    const modelName = (aiModel === 'meta') ? 'Meta AI' : 'Google Veo';
+
     const systemPrompt = `
-You are an expert E-commerce Scriptwriter for VEO (Video AI). Your task is to analyze user images and generate a video script based on platform and duration, specifically formatted for VEO's 8-second clip limitation.
+You are an expert E-commerce Scriptwriter for Video AI (${modelName}). Your task is to analyze user images and generate a video script based on platform and duration, specifically formatted for the ${step}-second clip limitation of this model.
 You MUST return your answer as a single, valid JSON object.
 
 The JSON object must have two keys:
-1. "fullScript": A string containing the complete shooting script, broken into **8-SECOND BLOCKS**. Include VISUAL, AUDIO, and VOICEOVER lines.
+1. "fullScript": A string containing the complete shooting script, broken into **${step}-SECOND BLOCKS**. Include VISUAL, AUDIO, and VOICEOVER lines.
 2. "voiceoverScript": A string containing ONLY the voiceover lines, concatenated together, ready for a Text-to-Speech engine.
 
---- PENTING: CONTOH BLOK 8 DETIK ---
+--- PENTING: CONTOH BLOK ${step} DETIK ---
 {
-  "fullScript": "0:00-0:08 | VISUAL: Cinematic extreme close-up pada tekstur produk. Kamera tilt up.\nAUDIO: Musik Lo-fi dimulai.\nVOICEOVER: Ini bukan sekadar produk.\n\n0:08-0:16 | VISUAL: Medium shot model memakai produk, berjalan di taman kota.\nAUDIO: Suara langkah kaki.\nVOICEOVER: Ini adalah gaya hidup.",
+  "fullScript": "0:00-0:${step < 10 ? '0'+step : step} | VISUAL: Cinematic extreme close-up pada tekstur produk. Kamera tilt up.\nAUDIO: Musik Lo-fi dimulai.\nVOICEOVER: Ini bukan sekadar produk.\n\n0:${step < 10 ? '0'+step : step}-0:${step*2} | VISUAL: Medium shot model memakai produk, berjalan di taman kota.\nAUDIO: Suara langkah kaki.\nVOICEOVER: Ini adalah gaya hidup.",
   "voiceoverScript": "Ini bukan sekadar produk. Ini adalah gaya hidup."
 }
 `.trim();
@@ -366,13 +371,13 @@ The JSON object must have two keys:
                 role: "user",
                 parts: [
                     { "text": `Platform Target: ${platformInstruction}` },
-                    { "text": `**DURASI WAJIB**: Naskah HARUS pas untuk **${duration}**. Bagi naskah menjadi blok-blok 8 detik (0:00-0:08, 0:08-0:16, dst).`},
+                    { "text": `**DURASI WAJIB**: Naskah HARUS pas untuk **${duration}**. Bagi naskah menjadi blok-blok ${step} detik (0:00-0:${step}, 0:${step}-0:${step*2}, dst).`},
                     { "text": "--- GAMBAR PRODUK (Fokus di sini) ---" },
                     { "inlineData": { "mimeType": "image/png", "data": productBase64 } },
                     { "text": "--- GAMBAR MODEL (Gunakan ini untuk 'vibe' dan 'gaya') ---" },
                     { "inlineData": { "mimeType": "image/png", "data": modelBase64 } },
                     { "text": "--- TUGAS ANDA ---" },
-                    { "text": `Tulis naskah VEO yang mempromosikan PRODUK dengan gaya MODEL, sesuai target platform dan durasi. Bagi menjadi blok 8 detik. Kembalikan HANYA objek JSON yang valid.` }
+                    { "text": `Tulis naskah ${modelName} yang mempromosikan PRODUK dengan gaya MODEL, sesuai target platform dan durasi. Bagi menjadi blok ${step} detik. Kembalikan HANYA objek JSON yang valid.` }
                 ]
             }
         ],
@@ -430,7 +435,7 @@ async function generateVideoFromImage(prompt) {
 
 
 /**
- * **PERUBAHAN**: FITUR 4 (Langkah A): Generate Audio Script (Dinamis VEO/Meta)
+ * FITUR 4 (Langkah A): Generate Audio Script (Dinamis VEO/Meta)
  */
 async function generateAudioScript(productBase64, modelBase64, platform, duration, aiModel) {
     if (!API_KEY) return { success: false, error: "API Key tidak ditemukan." };
