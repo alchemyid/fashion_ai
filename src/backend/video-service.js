@@ -88,7 +88,6 @@ function hasAudioStream(filePath) {
 
 /**
  * MAIN FUNCTION: Join with XFADE Transitions + Audio Mixing + Watermark
- * Update: Menambahkan parameter 'watermark'
  */
 async function processJoinVideo(videoFiles, voiceFile, backsoundFile, useBacksound, watermark) {
     const tempDir = path.join(os.tmpdir(), 'fashion-ai-video-proc', uuidv4());
@@ -161,7 +160,6 @@ async function processJoinVideo(videoFiles, voiceFile, backsoundFile, useBacksou
             const count = processedVideos.length;
 
             // --- A. Normalize Inputs ---
-            // Semua video di-scale ke 720x1280
             for (let i = 0; i < count; i++) {
                 filterComplex.push(`[${i}:v]scale=720:1280:force_original_aspect_ratio=decrease,pad=720:1280:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,format=yuv420p[v${i}]`);
                 filterComplex.push(`[${i}:a]aresample=44100,asetpts=PTS-STARTPTS[a${i}]`);
@@ -174,12 +172,8 @@ async function processJoinVideo(videoFiles, voiceFile, backsoundFile, useBacksou
 
             for (let i = 1; i < count; i++) {
                 const prevDuration = processedVideos[i-1].duration;
-
-                // PERBAIKAN: Menggunakan TRANSITION_DURATION yang benar
                 currentOffset += prevDuration - TRANSITION_DURATION;
-
                 if (currentOffset < 0) currentOffset = 0;
-
                 const offset = currentOffset;
 
                 const nextV = `[v${i}]`;
@@ -197,22 +191,22 @@ async function processJoinVideo(videoFiles, voiceFile, backsoundFile, useBacksou
             const finalV_joined = count > 1 ? vLabel : '[v0]';
             const finalA_raw = count > 1 ? aLabel : '[a0]';
 
-            let nextInputIndex = count; // Index input selanjutnya untuk FFmpeg
+            let nextInputIndex = count; // Index input selanjutnya
 
             // --- C. Watermark Logic ---
-            let finalV_output = finalV_joined; // Default output video jika tanpa watermark
+            let finalV_output = finalV_joined;
 
             if (watermarkPath) {
-                command.input(watermarkPath); // Input ke-(count)
+                // Fix loop issue explicitly
+                command.addInput(watermarkPath).inputOptions(['-loop 1']);
+
                 const wmIndex = nextInputIndex;
                 nextInputIndex++;
 
-                // Hitung Opasitas (0-100 -> 0.0-1.0)
                 const opacityFactor = (watermark.opacity || 100) / 100;
+                // Get size from watermark param or default to 200
+                const wmSize = watermark.size || 200;
 
-                // Hitung Koordinat Overlay
-                // W = width main, H = height main, w = width overlay, h = height overlay
-                // Margin 20px
                 let overlayCoord = "";
                 switch (watermark.position) {
                     case 'top_left': overlayCoord = "x=20:y=20"; break;
@@ -220,16 +214,13 @@ async function processJoinVideo(videoFiles, voiceFile, backsoundFile, useBacksou
                     case 'bottom_left': overlayCoord = "x=20:y=main_h-overlay_h-20"; break;
                     case 'bottom_right': overlayCoord = "x=main_w-overlay_w-20:y=main_h-overlay_h-20"; break;
                     case 'center': overlayCoord = "x=(main_w-overlay_w)/2:y=(main_h-overlay_h)/2"; break;
-                    default: overlayCoord = "x=main_w-overlay_w-20:y=main_h-overlay_h-20"; // Default bottom right
+                    default: overlayCoord = "x=main_w-overlay_w-20:y=main_h-overlay_h-20";
                 }
 
-                // Filter Chain Watermark:
-                // 1. Scale watermark agar proporsional (misal lebar 200px)
-                // 2. Set transparansi menggunakan colorchannelmixer (aa = alpha)
-                filterComplex.push(`[${wmIndex}:v]scale=200:-1,format=rgba,colorchannelmixer=aa=${opacityFactor}[wm_ready]`);
-
-                // 3. Overlay ke video hasil join
-                filterComplex.push(`${finalV_joined}[wm_ready]overlay=${overlayCoord}[v_watermarked]`);
+                // PENTING: scale=SIZE:-1:flags=lanczos,format=rgba
+                // Menggunakan format=rgba menjaga alpha channel agar tidak hilang saat di-resize
+                filterComplex.push(`[${wmIndex}:v]scale=${wmSize}:-1:flags=lanczos,format=rgba,colorchannelmixer=aa=${opacityFactor}[wm_ready]`);
+                filterComplex.push(`${finalV_joined}[wm_ready]overlay=${overlayCoord}:format=auto[v_watermarked]`);
 
                 finalV_output = '[v_watermarked]';
             }
@@ -263,11 +254,12 @@ async function processJoinVideo(videoFiles, voiceFile, backsoundFile, useBacksou
             command
                 .complexFilter(filterComplex)
                 .outputOptions([
-                    '-map', finalV_output, // Map video akhir (dengan/tanpa watermark)
+                    '-map', finalV_output,
                     '-map', '[final_audio]',
                     '-c:v', 'libx264',
                     '-preset', 'ultrafast',
                     '-c:a', 'aac',
+                    '-pix_fmt', 'yuv420p', // Penting untuk kompatibilitas player
                     '-shortest'
                 ])
                 .save(outputPath)

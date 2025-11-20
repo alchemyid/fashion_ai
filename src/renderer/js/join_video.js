@@ -14,6 +14,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const watermarkPosition = document.getElementById('watermarkPosition');
     const watermarkOpacity = document.getElementById('watermarkOpacity');
     const opacityValue = document.getElementById('opacityValue');
+    const watermarkSize = document.getElementById('watermarkSize'); // New
+    const sizeValue = document.getElementById('sizeValue'); // New
 
     // Watermark AI Elements
     const watermarkPreviewContainer = document.getElementById('watermarkPreviewContainer');
@@ -168,9 +170,10 @@ document.addEventListener('DOMContentLoaded', () => {
         isolateStatus.style.color = '#666';
 
         try {
-            const response = await window.electron.invoke('/api/segment-product', {
-                productBase64: watermarkData,
-                segmentPrompt: prompt
+            // Menggunakan endpoint khusus remove-background
+            const response = await window.electron.invoke('/api/remove-background', {
+                imageBase64: watermarkData,
+                prompt: prompt
             });
 
             if (response.success && response.data.imageBase64) {
@@ -181,7 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 watermarkPreview.src = `data:image/png;base64,${watermarkData}`;
                 isolateStatus.textContent = 'Berhasil! Background dihapus.';
                 isolateStatus.style.color = 'green';
-                watermarkFileName.textContent = "isolated_" + watermarkName;
+                watermarkFileName.textContent = "transparent_" + watermarkName;
             } else {
                 throw new Error(response.error || 'Gagal menghapus background.');
             }
@@ -197,6 +200,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     watermarkOpacity.addEventListener('input', (e) => {
         opacityValue.textContent = `${e.target.value}%`;
+    });
+
+    watermarkSize.addEventListener('input', (e) => {
+        sizeValue.textContent = `${e.target.value}px`;
     });
 
     // 4. Process Form
@@ -243,14 +250,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 backsoundPayload = { name: backsoundFile.name, data: await fileToBase64(backsoundFile) };
             }
 
-            // Persiapkan Watermark (Gunakan watermarkData yang mungkin sudah di-isolate)
+            // Persiapkan Watermark (Gunakan watermarkData yang sudah diupdate)
             let watermarkPayload = null;
             if (watermarkData) {
                 watermarkPayload = {
-                    name: watermarkName || 'watermark.png',
-                    data: watermarkData, // Ini base64 string
+                    name: 'watermark.png',
+                    data: watermarkData,
                     position: watermarkPosition.value,
-                    opacity: parseInt(watermarkOpacity.value, 10)
+                    opacity: parseInt(watermarkOpacity.value, 10),
+                    size: parseInt(watermarkSize.value, 10) // Kirim size ke backend
                 };
             }
 

@@ -21,6 +21,11 @@
             border: 1px solid var(--color-border);
             border-radius: var(--border-radius);
         }
+        .control-item {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
         .control-item label {
             display: block;
             font-size: 0.85rem;
@@ -34,7 +39,7 @@
             border: 1px solid var(--color-border);
             border-radius: 4px;
         }
-        .opacity-value {
+        .value-display {
             float: right;
             font-size: 0.8rem;
             color: var(--color-primary);
@@ -110,29 +115,20 @@
 
                     <!-- 2. Upload Voice Audio -->
                     <div class="form-group">
-                        <label class="font-bold text-xl mb-2 block">2. Voice Audio (Optional)</label>
-                        <p class="helper-text">File suara utama (Narasi/Voiceover). Biarkan kosong jika tidak ada.</p>
-
-                        <label for="voiceInput" class="upload-box-compact">
-                            <div class="icon-side"><i class="fas fa-microphone-alt"></i></div>
-                            <div class="text-side">
-                                <p>Upload Voice File</p>
-                                <span id="voiceFileName">(MP3/WAV)</span>
-                            </div>
-                            <input type="file" id="voiceInput" accept="audio/*">
-                        </label>
-                    </div>
-
-                    <!-- 3. Backsound Audio -->
-                    <div class="form-group">
-                        <label class="font-bold text-xl mb-2 block">3. Backsound Audio (Optional)</label>
-                        <p class="helper-text">Musik latar tambahan.</p>
-
-                        <div id="backsoundUploadContainer">
-                            <label for="backsoundInput" class="upload-box-compact">
+                        <label class="font-bold text-xl mb-2 block">2. Audio (Optional)</label>
+                        <div style="display: flex; gap: 1rem;">
+                            <label for="voiceInput" class="upload-box-compact" style="flex:1;">
+                                <div class="icon-side"><i class="fas fa-microphone-alt"></i></div>
+                                <div class="text-side">
+                                    <p>Voice</p>
+                                    <span id="voiceFileName">(MP3/WAV)</span>
+                                </div>
+                                <input type="file" id="voiceInput" accept="audio/*">
+                            </label>
+                            <label for="backsoundInput" class="upload-box-compact" style="flex:1;">
                                 <div class="icon-side"><i class="fas fa-music"></i></div>
                                 <div class="text-side">
-                                    <p>Upload Backsound</p>
+                                    <p>BGM</p>
                                     <span id="backsoundFileName">(MP3/WAV)</span>
                                 </div>
                                 <input type="file" id="backsoundInput" accept="audio/*">
@@ -140,9 +136,9 @@
                         </div>
                     </div>
 
-                    <!-- 4. Watermark (New Feature) -->
+                    <!-- 3. Watermark (New Feature) -->
                     <div class="form-group">
-                        <label class="font-bold text-xl mb-2 block">4. Watermark (Optional)</label>
+                        <label class="font-bold text-xl mb-2 block">3. Watermark (Optional)</label>
                         <p class="helper-text">Logo atau branding overlay.</p>
 
                         <label for="watermarkInput" class="upload-box-compact">
@@ -169,7 +165,7 @@
                         </div>
 
                         <div class="watermark-controls" id="watermarkSettings" style="display: none;">
-                            <div class="control-item">
+                            <div class="control-item" style="grid-column: span 2;">
                                 <label>Posisi</label>
                                 <select id="watermarkPosition">
                                     <option value="top_right">Pojok Kanan Atas</option>
@@ -180,8 +176,13 @@
                                 </select>
                             </div>
                             <div class="control-item">
-                                <label>Opacity <span id="opacityValue" class="opacity-value">70%</span></label>
+                                <label>Opacity <span id="opacityValue" class="value-display">70%</span></label>
                                 <input type="range" id="watermarkOpacity" min="10" max="100" value="70">
+                            </div>
+                            <!-- NEW: SLIDER UKURAN -->
+                            <div class="control-item">
+                                <label>Ukuran (Width) <span id="sizeValue" class="value-display">200px</span></label>
+                                <input type="range" id="watermarkSize" min="50" max="600" value="200">
                             </div>
                         </div>
                     </div>

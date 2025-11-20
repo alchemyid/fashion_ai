@@ -254,6 +254,28 @@ function startAPIServer() {
         }
     });
 
+    // Endpoint Khusus Remove Background (Logo/Watermark)
+    apiApp.post('/api/remove-background', async (req, res) => {
+        try {
+            const { imageBase64, prompt } = req.body;
+            if (!imageBase64) {
+                return res.status(400).json({ success: false, error: 'Image is required.' });
+            }
+            // Default prompt jika user tidak mengisi
+            const cleanPrompt = prompt || "logo";
+
+            const result = await aiService.removeBackground(imageBase64, cleanPrompt);
+
+            if (result.success) {
+                res.json({ success: true, data: { imageBase64: result.imageBase64 } });
+            } else {
+                res.status(500).json({ success: false, error: result.error });
+            }
+        } catch (error) {
+            res.status(500).json({ success: false, error: error.message });
+        }
+    });
+
     // ==========================================
     // FITUR BARU: PRODUCTION - JOIN VIDEO
     // ==========================================

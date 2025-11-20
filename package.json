@@ -4,6 +4,7 @@
   "description": "AI Fashion Image Generator",
   "main": "main.js",
   "scripts": {
+    "obfuscate": "javascript-obfuscator src --output dist --compact true --control-flow-flattening true --self-defending true --string-array true --string-array-encoding base64 --string-array-threshold 1",
     "start": "electron . --no-sandbox",
     "build:win": "electron-builder --win",
     "build:mac": "electron-builder --mac",
@@ -44,7 +45,8 @@
   },
   "devDependencies": {
     "electron": "^33.0.0",
-    "electron-builder": "^25.0.0"
+    "electron-builder": "^25.0.0",
+    "javascript-obfuscator": "^4.1.1"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",

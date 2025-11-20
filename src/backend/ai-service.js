@@ -729,6 +729,67 @@ Output MUST be a valid JSON object with two keys:
     }
 }
 
+/**
+ * FITUR EXTRA: Remove Background (Khusus Logo/Watermark)
+ * Berbeda dengan Segment Product, ini lebih agresif menghapus background putih pada grafis/teks.
+ */
+async function removeBackground(imageBase64, typePrompt) {
+    if (!API_KEY) {
+        return { success: false, error: "API Key tidak ditemukan." };
+    }
+
+    // Prompt khusus untuk logo/text removal - DIUPDATE
+    const systemPrompt = `
+You are an expert graphic designer specialized in background removal for LOGOS and WATERMARKS.
+Your task is to take the provided image (likely a logo with a white or solid background) and remove the background COMPLETELY, creating a TRANSPARENT PNG.
+
+--- STRICT RULES ---
+1.  **TARGET**: Isolate the logo text, icon, or symbol "${typePrompt}".
+2.  **ALPHA CHANNEL**: You MUST return an image with an ALPHA CHANNEL. All background pixels must have alpha=0 (transparent).
+3.  **WHITE REMOVAL**: If the logo is on a white box, the white box must be GONE. Only the logo itself should remain.
+4.  **OUTPUT**: Return ONLY the raw PNG image data with transparency.
+`.trim();
+
+    const payload = {
+        contents: [
+            {
+                role: "user",
+                parts: [
+                    { "text": `Remove the white/solid background from this logo. Make it transparent PNG.` },
+                    { "inlineData": { "mimeType": "image/png", "data": imageBase64 } }
+                ]
+            }
+        ],
+        systemInstruction: { parts: [{ "text": systemPrompt }] },
+        generationConfig: {
+            responseModalities: ["IMAGE"],
+            // Note: Gemini usually defaults to JPEG/PNG based on content, but we strongly imply PNG in prompt.
+        }
+    };
+
+    try {
+        const result = await fetchWithRetry(GEMINI_IMAGE_EDIT_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (result.candidates && result.candidates[0]) {
+            const candidate = result.candidates[0];
+            const imagePart = candidate?.content?.parts?.find(p => p.inlineData);
+            if (imagePart?.inlineData?.data) {
+                return { success: true, imageBase64: imagePart.inlineData.data };
+            } else {
+                throw new Error("API tidak mengembalikan data gambar.");
+            }
+        } else {
+            throw new Error("API tidak mengembalikan 'candidates'.");
+        }
+    } catch (error) {
+        console.error('AI Remove Background Error:', error);
+        return { success: false, error: error.message };
+    }
+}
+
 
 module.exports = {
     generateImage,
@@ -741,5 +802,6 @@ module.exports = {
     generateVoiceover,
     recommendMusic,
     recommendSfx,
-    generateCaptionAndHashtags
+    generateCaptionAndHashtags,
+    removeBackground // Ekspor fungsi baru
 };
