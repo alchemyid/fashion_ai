@@ -101,7 +101,7 @@ async function processJoinVideo(videoFiles, voiceFile, backsoundFile, useBacksou
     let backsoundPath = null;
     const silenceSourcePath = path.join(tempDir, 'silence_source.m4a');
     const outputPath = path.join(tempDir, 'output_final.mp4');
-    const TRANSITION_DURATION = 1; // Durasi transisi 1 detik
+    const TRANSITION_DURATION = 0.5; // Durasi transisi 1 detik
 
     try {
         console.log(`[VideoService] Processing ${videoFiles.length} videos with transitions...`);
