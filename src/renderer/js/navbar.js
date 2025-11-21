@@ -15,6 +15,7 @@ async function loadNavbar(currentPage) {
                 const parent = item.closest('.nav-submenu').previousElementSibling;
                 parent.classList.add('expanded', 'active');
                 item.closest('.nav-submenu').classList.add('expanded');
+                item.closest('.nav-submenu').style.maxHeight = item.closest('.nav-submenu').scrollHeight + "px";
             }
         }
     });
@@ -25,9 +26,27 @@ async function loadNavbar(currentPage) {
 }
 
 function toggleSubmenu(element) {
+    // Close all other submenus first (Accordion behavior)
+    const allParents = document.querySelectorAll('.nav-item-parent');
+    allParents.forEach(parent => {
+        if (parent !== element && parent.classList.contains('expanded')) {
+            parent.classList.remove('expanded');
+            const submenu = parent.nextElementSibling;
+            submenu.classList.remove('expanded');
+            submenu.style.maxHeight = null;
+        }
+    });
+
+    // Toggle current
     element.classList.toggle('expanded');
     const submenu = element.nextElementSibling;
     submenu.classList.toggle('expanded');
+
+    if (submenu.style.maxHeight) {
+        submenu.style.maxHeight = null;
+    } else {
+        submenu.style.maxHeight = submenu.scrollHeight + "px";
+    }
 }
 
 function logout() {
