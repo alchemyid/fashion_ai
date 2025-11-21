@@ -334,7 +334,7 @@ ${shotType.desc}
  */
 async function generateVeoPrompt(productBase64, modelBase64, platform, duration, aiModel) {
     if (!API_KEY) {
-        return { success: false, error: "API Key tidak ditemukan." };
+        return { success: false, error: "API Key tidak ditemukan. Pastikan GEMINI_API_KEY diatur di .env" };
     }
 
     let platformInstruction = "";
@@ -790,6 +790,93 @@ Your task is to take the provided image (likely a logo with a white or solid bac
     }
 }
 
+/**
+ * TSHIRT CREATOR: Generate 6 Variasi Foto
+ */
+async function generateTshirtPhotos(base64Image, theme) {
+    if (!API_KEY) {
+        return { success: false, error: "API Key tidak ditemukan." };
+    }
+
+    // Kita akan melakukan loop 6 kali untuk menghasilkan 6 variasi
+    const variationCount = 6;
+    const apiCalls = [];
+
+    // Prompts variasi agar hasil tidak identik (Angle/Zoom)
+    const variations = [
+        "Eye-level shot, balanced composition",
+        "Close-up detail shot, sharp focus on fabric",
+        "High angle artistic shot",
+        "Slightly low angle, heroic look",
+        "Dynamic lighting, dramatic shadows",
+        "Soft diffused lighting, clean look"
+    ];
+
+    const systemPrompt = `
+You are a professional Product Photographer. Your task is to transform the provided T-Shirt Mockup into a high-end, commercial product photograph.
+Theme: ${theme}.
+The design on the t-shirt MUST REMAIN EXACTLY THE SAME. Do not distort the logo or text.
+Focus on realistic lighting, fabric texture, and background atmosphere fitting the theme.
+Result must be a photorealistic image.
+`.trim();
+
+    for (let i = 0; i < variationCount; i++) {
+        const variationPrompt = `Transform this mockup into a professional photograph. Theme: ${theme}. Style: ${variations[i]}. Photorealistic, 8k. Keep design exact.`;
+
+        const payload = {
+            contents: [{
+                parts: [
+                    { text: variationPrompt },
+                    { inlineData: { mimeType: "image/png", data: base64Image } } // Input format PNG
+                ]
+            }],
+            systemInstruction: { parts: [{ text: systemPrompt }] },
+            generationConfig: { responseModalities: ["IMAGE"] }
+        };
+
+        apiCalls.push(
+            fetchWithRetry(GEMINI_IMAGE_EDIT_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+        );
+    }
+
+    try {
+        console.log(`[Tshirt Creator] Generating ${variationCount} variations for theme: ${theme}`);
+
+        // Jalankan semua request secara paralel
+        const results = await Promise.allSettled(apiCalls);
+
+        const generatedImages = [];
+        let errors = [];
+
+        results.forEach((res, index) => {
+            if (res.status === 'fulfilled' && res.value.candidates?.[0]) {
+                const imagePart = res.value.candidates[0].content?.parts?.find(p => p.inlineData);
+                if (imagePart?.inlineData?.data) {
+                    generatedImages.push(imagePart.inlineData.data);
+                }
+            } else {
+                const err = res.reason?.message || "Unknown error";
+                console.error(`Variation ${index + 1} failed:`, err);
+                errors.push(err);
+            }
+        });
+
+        if (generatedImages.length > 0) {
+            return { success: true, images: generatedImages, partial: generatedImages.length < variationCount };
+        } else {
+            throw new Error(`All generation attempts failed. Errors: ${errors.join(', ')}`);
+        }
+
+    } catch (error) {
+        console.error('AI Tshirt Generator Error:', error);
+        return { success: false, error: error.message };
+    }
+}
+
 
 module.exports = {
     generateImage,
@@ -803,5 +890,6 @@ module.exports = {
     recommendMusic,
     recommendSfx,
     generateCaptionAndHashtags,
-    removeBackground // Ekspor fungsi baru
+    removeBackground,
+    generateTshirtPhotos // Export fungsi baru
 };

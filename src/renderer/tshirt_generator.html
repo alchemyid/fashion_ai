@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>T-Shirt Creator - Fashion AI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        /* CSS Khusus Tshirt Creator */
+        .feature-layout {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+        }
+        @media (min-width: 1200px) {
+            .feature-layout {
+                grid-template-columns: 400px 1fr;
+            }
+        }
+
+        /* Color Buttons */
+        .color-btn {
+            width: 40px; height: 40px;
+            border-radius: 50%;
+            border: 2px solid #e2e8f0;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .color-btn:hover { transform: scale(1.1); }
+        .color-btn.active { border-color: var(--color-primary); box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.4); }
+
+        /* Canvas Container */
+        .canvas-container {
+            width: 100%;
+            aspect-ratio: 1/1;
+            background-color: #f3f4f6;
+            border-radius: 16px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.05);
+        }
+
+        /* Result Grid */
+        .result-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+        .result-item {
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            background: #fff;
+            position: relative;
+        }
+        .result-item img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            display: block;
+        }
+        .download-btn {
+            position: absolute; bottom: 8px; right: 8px;
+            background: rgba(0,0,0,0.6); color: white;
+            padding: 5px 10px; border-radius: 20px;
+            text-decoration: none; font-size: 0.8rem;
+        }
+
+        /* Controls Slider */
+        .slider-group {
+            margin-bottom: 1rem;
+        }
+        .slider-group label {
+            display: flex; justify-content: space-between;
+            font-size: 0.8rem; font-weight: 600; color: #64748b; margin-bottom: 0.25rem;
+        }
+        .slider-input {
+            width: 100%;
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        .slider-input::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px; height: 16px;
+            background: var(--color-primary);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .tab-btn {
+            flex: 1; padding: 10px; text-align: center; cursor: pointer;
+            border-bottom: 2px solid transparent; color: #64748b; font-weight: 500;
+        }
+        .tab-btn.active {
+            border-bottom-color: var(--color-primary); color: var(--color-primary);
+        }
+
+        .upload-compact {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px dashed #cbd5e1;
+            border-radius: 8px;
+            padding: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        .upload-compact:hover { border-color: var(--color-primary); background: #f8fafc; }
+
+        #hiddenCanvas { display: none; }
+    </style>
+</head>
+<body>
+<div class="dashboard-layout">
+    <!-- Navbar injected by JS -->
+
+    <main class="content">
+        <div class="content-header">
+            <h1><i class="fas fa-tshirt"></i> T-Shirt Creator Studio</h1>
+            <p>Design custom mockups and generate professional photoshoots with AI.</p>
+        </div>
+
+        <div class="feature-layout">
+            <!-- LEFT COLUMN: CONTROLS -->
+            <div class="controls-column">
+                <div class="form-card" style="margin: 0; position: sticky; top: 20px; max-height: calc(100vh - 40px); overflow-y: auto;">
+
+                    <!-- 1. BASE T-SHIRT -->
+                    <div class="form-group">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                            <label class="font-bold">1. Base T-Shirt</label>
+                            <button id="resetBaseBtn" style="font-size: 0.7rem; color: #ef4444; border:none; background:none; cursor:pointer; display:none;">
+                                <i class="fas fa-trash"></i> Reset
+                            </button>
+                        </div>
+
+                        <label for="baseUpload" class="upload-compact" id="baseUploadLabel">
+                            <div>
+                                <i class="fas fa-cloud-upload-alt" style="font-size: 1.5rem; color: #94a3b8; margin-bottom: 0.5rem;"></i>
+                                <p style="font-size: 0.8rem; font-weight: 600;">Upload Base (Grey/White PNG)</p>
+                            </div>
+                            <input type="file" id="baseUpload" accept="image/png" hidden>
+                        </label>
+                    </div>
+
+                    <!-- 2. COLOR PICKER -->
+                    <div class="form-group">
+                        <label class="font-bold mb-2 block">2. Fabric Color</label>
+                        <div class="flex flex-wrap gap-2" id="colorPalette" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                            <!-- Colors injected by JS -->
+                        </div>
+                        <input type="color" id="customColorPicker" style="width: 100%; margin-top: 8px; height: 36px; cursor: pointer;">
+                    </div>
+
+                    <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 1.5rem 0;">
+
+                    <!-- 3. DESIGN -->
+                    <div class="form-group">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                            <label class="font-bold">3. Main Design</label>
+                            <button id="removeDesignBtn" style="font-size: 0.7rem; color: #ef4444; border:none; background:none; cursor:pointer; display:none;">
+                                <i class="fas fa-times"></i> Remove
+                            </button>
+                        </div>
+
+                        <label for="designUpload" class="upload-compact" id="designUploadLabel">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <i class="fas fa-image" style="color: #6366f1;"></i>
+                                <span style="font-size: 0.9rem;">Upload Logo/Graphic</span>
+                            </div>
+                            <input type="file" id="designUpload" accept="image/*" hidden>
+                        </label>
+
+                        <!-- Design Controls (Hidden by default) -->
+                        <div id="designControls" style="display: none; margin-top: 1rem; background: #f8fafc; padding: 1rem; border-radius: 8px;">
+                            <div class="slider-group">
+                                <label><span>Position X</span> <span id="designXVal">50%</span></label>
+                                <input type="range" class="slider-input" id="designX" min="0" max="100" value="50">
+                            </div>
+                            <div class="slider-group">
+                                <label><span>Position Y</span> <span id="designYVal">40%</span></label>
+                                <input type="range" class="slider-input" id="designY" min="0" max="100" value="40">
+                            </div>
+                            <div class="slider-group">
+                                <label><span>Scale</span> <span id="designScaleVal">100%</span></label>
+                                <input type="range" class="slider-input" id="designScale" min="10" max="200" value="100">
+                            </div>
+                            <div class="slider-group" style="margin-bottom: 0;">
+                                <label><span>Rotate</span> <span id="designRotateVal">0°</span></label>
+                                <input type="range" class="slider-input" id="designRotate" min="0" max="360" value="0">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4. LABEL -->
+                    <div class="form-group">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                            <label class="font-bold">4. Neck Label</label>
+                            <button id="removeLabelBtn" style="font-size: 0.7rem; color: #ef4444; border:none; background:none; cursor:pointer; display:none;">
+                                <i class="fas fa-times"></i> Remove
+                            </button>
+                        </div>
+                        <label for="labelUpload" class="upload-compact" id="labelUploadLabel">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <i class="fas fa-tag" style="color: #6366f1;"></i>
+                                <span style="font-size: 0.9rem;">Upload Brand Tag</span>
+                            </div>
+                            <input type="file" id="labelUpload" accept="image/*" hidden>
+                        </label>
+
+                        <!-- Label Controls -->
+                        <div id="labelControls" style="display: none; margin-top: 1rem; background: #f8fafc; padding: 1rem; border-radius: 8px;">
+                            <div class="slider-group">
+                                <label><span>Position X</span> <span id="labelXVal">50%</span></label>
+                                <input type="range" class="slider-input" id="labelX" min="0" max="100" value="50">
+                            </div>
+                            <div class="slider-group">
+                                <label><span>Position Y</span> <span id="labelYVal">15%</span></label>
+                                <input type="range" class="slider-input" id="labelY" min="0" max="100" value="15">
+                            </div>
+                            <div class="slider-group">
+                                <label><span>Scale</span> <span id="labelScaleVal">15%</span></label>
+                                <input type="range" class="slider-input" id="labelScale" min="5" max="50" value="15">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN: PREVIEW & GENERATE -->
+            <div class="preview-column">
+                <!-- Live Preview Card -->
+                <div style="background: white; border-radius: 16px; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); margin-bottom: 2rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h3 class="font-bold text-xl"><i class="fas fa-eye"></i> Live Preview</h3>
+                        <button id="downloadMockupBtn" class="btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.85rem;">
+                            <i class="fas fa-download"></i> Save PNG
+                        </button>
+                    </div>
+
+                    <!-- THE CANVAS -->
+                    <div class="canvas-container" id="canvasContainer">
+                        <canvas id="tshirtCanvas"></canvas>
+                        <!-- Loader Overlay -->
+                        <div id="canvasLoader" style="position: absolute; inset:0; background:rgba(255,255,255,0.8); display:flex; align-items:center; justify-content:center; display: none;">
+                            <i class="fas fa-spinner fa-spin fa-2x text-primary"></i>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1rem; display: flex; gap: 1rem; align-items: center; justify-content: center;">
+                        <label style="font-size: 0.9rem; font-weight: 600; color: #475569;">Background:</label>
+                        <input type="color" id="bgColorPicker" value="#f3f4f6" style="border:none; width: 30px; height: 30px; cursor: pointer; border-radius: 4px;">
+                    </div>
+                </div>
+
+                <!-- AI Generation Card -->
+                <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 100%); border: 1px solid #c7d2fe; border-radius: 16px; padding: 1.5rem;">
+                    <h3 class="font-bold text-xl mb-4" style="color: #3730a3;"><i class="fas fa-magic"></i> AI Photo Studio</h3>
+
+                    <div class="form-group">
+                        <label class="block mb-2 font-semibold" style="color: #4338ca;">Select Photo Theme</label>
+                        <select id="aiTheme" style="width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid #cbd5e1;">
+                            <option value="Cinematic Lighting">Cinematic Lighting (High Contrast)</option>
+                            <option value="Streetwear Urban">Streetwear Urban (Concrete & City)</option>
+                            <option value="Minimalist Studio">Minimalist Studio (Clean & Soft)</option>
+                            <option value="Nature Outdoor">Nature/Outdoor (Natural Light)</option>
+                            <option value="Cyberpunk Neon">Cyberpunk Neon (Futuristic)</option>
+                            <option value="Luxury High-End">Luxury High-End (Dark & Gold)</option>
+                        </select>
+                    </div>
+
+                    <button id="generateAiBtn" class="btn-execute" style="width: 100%; justify-content: center; margin-top: 1rem;">
+                        <i class="fas fa-camera"></i> Generate 6 Photos
+                    </button>
+                </div>
+
+                <!-- Results Area -->
+                <div id="resultsArea" style="margin-top: 2rem; display: none;">
+                    <h3 class="font-bold text-xl mb-2">AI Results</h3>
+                    <div class="result-grid" id="resultGrid">
+                        <!-- Images injected here -->
+                    </div>
+                </div>
+
+                <div id="aiLoading" style="display: none; margin-top: 2rem; text-align: center; padding: 2rem; background: white; border-radius: 12px;">
+                    <i class="fas fa-circle-notch fa-spin fa-3x" style="color: var(--color-primary); margin-bottom: 1rem;"></i>
+                    <p style="font-weight: 600; color: #475569;">AI is crafting your photoshoot...</p>
+                    <p style="font-size: 0.85rem; color: #94a3b8;">Generating 6 unique variations. This may take up to 30 seconds.</p>
+                </div>
+
+                <div id="errorMessage" class="error-message" style="margin-top: 1rem;"></div>
+
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Hidden Canvas for Offscreen processing if needed -->
+<canvas id="hiddenCanvas"></canvas>
+
+<script src="js/navbar.js"></script>
+<script src="js/tshirt_generator.js"></script>
+<script>
+    loadNavbar('tshirt_generator');
+</script>
+</body>
+</html>

@@ -314,6 +314,31 @@ function startAPIServer() {
         }
     });
 
+    // ==========================================
+    // FITUR BARU: TSHIRT CREATOR
+    // ==========================================
+
+    apiApp.post('/api/generate-tshirt-photos', async (req, res) => {
+        try {
+            const { base64Image, theme } = req.body;
+            if (!base64Image || !theme) {
+                return res.status(400).json({ success: false, error: 'Missing image or theme.' });
+            }
+
+            const result = await aiService.generateTshirtPhotos(base64Image, theme);
+
+            if (result.success) {
+                res.json({ success: true, data: { images: result.images } });
+            } else {
+                res.status(500).json({ success: false, error: result.error });
+            }
+
+        } catch (error) {
+            console.error('Tshirt Creator API Error:', error);
+            res.status(500).json({ success: false, error: error.message });
+        }
+    });
+
     // Start Server
     apiServer = apiApp.listen(5000, () => {
         console.log('API Server running on http://localhost:5000');
