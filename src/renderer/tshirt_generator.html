@@ -34,6 +34,14 @@
         .color-btn.active { border-color: var(--color-primary); box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.4); }
 
         /* Canvas Container */
+        .canvas-wrapper {
+            position: relative;
+            background: white;
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
         .canvas-container {
             width: 100%;
             aspect-ratio: 1/1;
@@ -45,6 +53,35 @@
             align-items: center;
             justify-content: center;
             box-shadow: inset 0 0 20px rgba(0,0,0,0.05);
+        }
+
+        /* View Switcher Tabs */
+        .view-switcher {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 1rem;
+            background: #f1f5f9;
+            padding: 4px;
+            border-radius: 8px;
+            width: fit-content;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .view-btn {
+            padding: 8px 24px;
+            border-radius: 6px;
+            border: none;
+            background: transparent;
+            color: #64748b;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .view-btn.active {
+            background: white;
+            color: var(--color-primary);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         }
 
         /* Result Grid */
@@ -73,6 +110,12 @@
             padding: 5px 10px; border-radius: 20px;
             text-decoration: none; font-size: 0.8rem;
         }
+        .result-badge {
+            position: absolute; top: 8px; left: 8px;
+            background: rgba(255,255,255,0.9); color: #333;
+            padding: 2px 8px; border-radius: 4px;
+            font-size: 0.7rem; font-weight: bold;
+        }
 
         /* Controls Slider */
         .slider-group {
@@ -98,14 +141,6 @@
             cursor: pointer;
         }
 
-        .tab-btn {
-            flex: 1; padding: 10px; text-align: center; cursor: pointer;
-            border-bottom: 2px solid transparent; color: #64748b; font-weight: 500;
-        }
-        .tab-btn.active {
-            border-bottom-color: var(--color-primary); color: var(--color-primary);
-        }
-
         .upload-compact {
             display: flex;
             align-items: center;
@@ -119,6 +154,22 @@
         }
         .upload-compact:hover { border-color: var(--color-primary); background: #f8fafc; }
 
+        .section-title {
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: #334155;
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .divider {
+            border: 0;
+            border-top: 1px solid #e2e8f0;
+            margin: 1.5rem 0;
+        }
+
         #hiddenCanvas { display: none; }
     </style>
 </head>
@@ -129,7 +180,7 @@
     <main class="content">
         <div class="content-header">
             <h1><i class="fas fa-tshirt"></i> T-Shirt Creator Studio</h1>
-            <p>Design custom mockups and generate professional photoshoots with AI.</p>
+            <p>Design custom mockups (Front & Back) and generate professional photoshoots.</p>
         </div>
 
         <div class="feature-layout">
@@ -139,37 +190,44 @@
 
                     <!-- 1. BASE T-SHIRT -->
                     <div class="form-group">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                            <label class="font-bold">1. Base T-Shirt</label>
-                            <button id="resetBaseBtn" style="font-size: 0.7rem; color: #ef4444; border:none; background:none; cursor:pointer; display:none;">
-                                <i class="fas fa-trash"></i> Reset
-                            </button>
+                        <div class="section-title">
+                            <span>1. Base Model (Grey/White)</span>
                         </div>
 
-                        <label for="baseUpload" class="upload-compact" id="baseUploadLabel">
+                        <!-- Front Base -->
+                        <label for="baseUpload" class="upload-compact" id="baseUploadLabel" style="margin-bottom: 0.5rem;">
                             <div>
-                                <i class="fas fa-cloud-upload-alt" style="font-size: 1.5rem; color: #94a3b8; margin-bottom: 0.5rem;"></i>
-                                <p style="font-size: 0.8rem; font-weight: 600;">Upload Base (Grey/White PNG)</p>
+                                <i class="fas fa-shirt" style="font-size: 1.2rem; color: #94a3b8; margin-bottom: 0.2rem;"></i>
+                                <p style="font-size: 0.75rem; font-weight: 600;">Upload Front Base</p>
                             </div>
                             <input type="file" id="baseUpload" accept="image/png" hidden>
+                        </label>
+
+                        <!-- Back Base -->
+                        <label for="baseBackUpload" class="upload-compact" id="baseBackUploadLabel">
+                            <div>
+                                <i class="fas fa-shirt" style="font-size: 1.2rem; color: #94a3b8; margin-bottom: 0.2rem;"></i>
+                                <p style="font-size: 0.75rem; font-weight: 600;">Upload Back Base (Optional)</p>
+                            </div>
+                            <input type="file" id="baseBackUpload" accept="image/png" hidden>
                         </label>
                     </div>
 
                     <!-- 2. COLOR PICKER -->
                     <div class="form-group">
-                        <label class="font-bold mb-2 block">2. Fabric Color</label>
+                        <div class="section-title">2. Fabric Color</div>
                         <div class="flex flex-wrap gap-2" id="colorPalette" style="display: flex; flex-wrap: wrap; gap: 8px;">
                             <!-- Colors injected by JS -->
                         </div>
                         <input type="color" id="customColorPicker" style="width: 100%; margin-top: 8px; height: 36px; cursor: pointer;">
                     </div>
 
-                    <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 1.5rem 0;">
+                    <hr class="divider">
 
-                    <!-- 3. DESIGN -->
+                    <!-- 3. FRONT DESIGN -->
                     <div class="form-group">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                            <label class="font-bold">3. Main Design</label>
+                        <div class="section-title">
+                            <span>3. Front Design</span>
                             <button id="removeDesignBtn" style="font-size: 0.7rem; color: #ef4444; border:none; background:none; cursor:pointer; display:none;">
                                 <i class="fas fa-times"></i> Remove
                             </button>
@@ -178,36 +236,20 @@
                         <label for="designUpload" class="upload-compact" id="designUploadLabel">
                             <div style="display: flex; align-items: center; gap: 10px;">
                                 <i class="fas fa-image" style="color: #6366f1;"></i>
-                                <span style="font-size: 0.9rem;">Upload Logo/Graphic</span>
+                                <span style="font-size: 0.85rem;">Upload Front Graphic</span>
                             </div>
                             <input type="file" id="designUpload" accept="image/*" hidden>
                         </label>
 
-                        <!-- Design Controls (Hidden by default) -->
                         <div id="designControls" style="display: none; margin-top: 1rem; background: #f8fafc; padding: 1rem; border-radius: 8px;">
-                            <div class="slider-group">
-                                <label><span>Position X</span> <span id="designXVal">50%</span></label>
-                                <input type="range" class="slider-input" id="designX" min="0" max="100" value="50">
-                            </div>
-                            <div class="slider-group">
-                                <label><span>Position Y</span> <span id="designYVal">40%</span></label>
-                                <input type="range" class="slider-input" id="designY" min="0" max="100" value="40">
-                            </div>
-                            <div class="slider-group">
-                                <label><span>Scale</span> <span id="designScaleVal">100%</span></label>
-                                <input type="range" class="slider-input" id="designScale" min="10" max="200" value="100">
-                            </div>
-                            <div class="slider-group" style="margin-bottom: 0;">
-                                <label><span>Rotate</span> <span id="designRotateVal">0°</span></label>
-                                <input type="range" class="slider-input" id="designRotate" min="0" max="360" value="0">
-                            </div>
+                            <!-- Controls injected by JS to reduce duplication -->
                         </div>
                     </div>
 
-                    <!-- 4. LABEL -->
+                    <!-- 4. NECK LABEL (Front Only) -->
                     <div class="form-group">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                            <label class="font-bold">4. Neck Label</label>
+                        <div class="section-title">
+                            <span>4. Neck Label (Front Only)</span>
                             <button id="removeLabelBtn" style="font-size: 0.7rem; color: #ef4444; border:none; background:none; cursor:pointer; display:none;">
                                 <i class="fas fa-times"></i> Remove
                             </button>
@@ -215,39 +257,73 @@
                         <label for="labelUpload" class="upload-compact" id="labelUploadLabel">
                             <div style="display: flex; align-items: center; gap: 10px;">
                                 <i class="fas fa-tag" style="color: #6366f1;"></i>
-                                <span style="font-size: 0.9rem;">Upload Brand Tag</span>
+                                <span style="font-size: 0.85rem;">Upload Brand Tag</span>
                             </div>
                             <input type="file" id="labelUpload" accept="image/*" hidden>
                         </label>
 
-                        <!-- Label Controls -->
                         <div id="labelControls" style="display: none; margin-top: 1rem; background: #f8fafc; padding: 1rem; border-radius: 8px;">
-                            <div class="slider-group">
-                                <label><span>Position X</span> <span id="labelXVal">50%</span></label>
-                                <input type="range" class="slider-input" id="labelX" min="0" max="100" value="50">
-                            </div>
-                            <div class="slider-group">
-                                <label><span>Position Y</span> <span id="labelYVal">15%</span></label>
-                                <input type="range" class="slider-input" id="labelY" min="0" max="100" value="15">
-                            </div>
-                            <div class="slider-group">
-                                <label><span>Scale</span> <span id="labelScaleVal">15%</span></label>
-                                <input type="range" class="slider-input" id="labelScale" min="5" max="50" value="15">
-                            </div>
+                            <!-- Controls injected by JS -->
                         </div>
                     </div>
+
+                    <hr class="divider">
+
+                    <!-- 5. BACK DESIGN (Optional) -->
+                    <div class="form-group">
+                        <div class="section-title">
+                            <span>5. Back Design (Optional)</span>
+                            <button id="removeBackDesignBtn" style="font-size: 0.7rem; color: #ef4444; border:none; background:none; cursor:pointer; display:none;">
+                                <i class="fas fa-times"></i> Remove
+                            </button>
+                        </div>
+
+                        <label for="designBackUpload" class="upload-compact" id="designBackUploadLabel">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <i class="fas fa-image" style="color: #6366f1;"></i>
+                                <span style="font-size: 0.85rem;">Upload Back Graphic</span>
+                            </div>
+                            <input type="file" id="designBackUpload" accept="image/*" hidden>
+                        </label>
+
+                        <div id="designBackControls" style="display: none; margin-top: 1rem; background: #f8fafc; padding: 1rem; border-radius: 8px;">
+                            <!-- Controls injected by JS -->
+                        </div>
+                    </div>
+
+                    <hr class="divider">
+
+                    <!-- 6. PHOTO THEME (Moved Here) -->
+                    <div class="form-group" style="background: linear-gradient(to right, #e0e7ff, #f0f9ff); padding: 1rem; border-radius: 8px; border: 1px solid #c7d2fe;">
+                        <label class="block mb-2 font-bold" style="color: #4338ca;"><i class="fas fa-magic"></i> 6. AI Photo Theme</label>
+                        <select id="aiTheme" style="width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 0.9rem;">
+                            <option value="Cinematic Lighting">Cinematic Lighting (High Contrast)</option>
+                            <option value="Streetwear Urban">Streetwear Urban (Concrete & City)</option>
+                            <option value="Minimalist Studio">Minimalist Studio (Clean & Soft)</option>
+                            <option value="Nature Outdoor">Nature/Outdoor (Natural Light)</option>
+                            <option value="Cyberpunk Neon">Cyberpunk Neon (Futuristic)</option>
+                            <option value="Luxury High-End">Luxury High-End (Dark & Gold)</option>
+                        </select>
+                    </div>
+
                 </div>
             </div>
 
             <!-- RIGHT COLUMN: PREVIEW & GENERATE -->
             <div class="preview-column">
                 <!-- Live Preview Card -->
-                <div style="background: white; border-radius: 16px; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); margin-bottom: 2rem;">
+                <div class="canvas-wrapper">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                         <h3 class="font-bold text-xl"><i class="fas fa-eye"></i> Live Preview</h3>
                         <button id="downloadMockupBtn" class="btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.85rem;">
                             <i class="fas fa-download"></i> Save PNG
                         </button>
+                    </div>
+
+                    <!-- View Switcher -->
+                    <div class="view-switcher">
+                        <button class="view-btn active" data-view="front" id="viewFrontBtn">Front View</button>
+                        <button class="view-btn" data-view="back" id="viewBackBtn">Back View</button>
                     </div>
 
                     <!-- THE CANVAS -->
@@ -260,31 +336,18 @@
                     </div>
 
                     <div style="margin-top: 1rem; display: flex; gap: 1rem; align-items: center; justify-content: center;">
-                        <label style="font-size: 0.9rem; font-weight: 600; color: #475569;">Background:</label>
+                        <label style="font-size: 0.9rem; font-weight: 600; color: #475569;">Preview Background:</label>
                         <input type="color" id="bgColorPicker" value="#f3f4f6" style="border:none; width: 30px; height: 30px; cursor: pointer; border-radius: 4px;">
                     </div>
                 </div>
 
-                <!-- AI Generation Card -->
-                <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 100%); border: 1px solid #c7d2fe; border-radius: 16px; padding: 1.5rem;">
-                    <h3 class="font-bold text-xl mb-4" style="color: #3730a3;"><i class="fas fa-magic"></i> AI Photo Studio</h3>
-
-                    <div class="form-group">
-                        <label class="block mb-2 font-semibold" style="color: #4338ca;">Select Photo Theme</label>
-                        <select id="aiTheme" style="width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid #cbd5e1;">
-                            <option value="Cinematic Lighting">Cinematic Lighting (High Contrast)</option>
-                            <option value="Streetwear Urban">Streetwear Urban (Concrete & City)</option>
-                            <option value="Minimalist Studio">Minimalist Studio (Clean & Soft)</option>
-                            <option value="Nature Outdoor">Nature/Outdoor (Natural Light)</option>
-                            <option value="Cyberpunk Neon">Cyberpunk Neon (Futuristic)</option>
-                            <option value="Luxury High-End">Luxury High-End (Dark & Gold)</option>
-                        </select>
-                    </div>
-
-                    <button id="generateAiBtn" class="btn-execute" style="width: 100%; justify-content: center; margin-top: 1rem;">
-                        <i class="fas fa-camera"></i> Generate 6 Photos
-                    </button>
-                </div>
+                <!-- Action Button -->
+                <button id="generateAiBtn" class="btn-execute" style="width: 100%; justify-content: center; padding: 1.2rem; font-size: 1.1rem; box-shadow: 0 10px 25px rgba(99, 102, 241, 0.3);">
+                    <i class="fas fa-camera"></i> Generate Photos (AI)
+                </button>
+                <p style="text-align: center; font-size: 0.8rem; color: #64748b; margin-top: 0.5rem;">
+                    *Will generate 6 Front photos. If Back Design exists, +6 Back photos (12 Total).
+                </p>
 
                 <!-- Results Area -->
                 <div id="resultsArea" style="margin-top: 2rem; display: none;">
@@ -296,8 +359,8 @@
 
                 <div id="aiLoading" style="display: none; margin-top: 2rem; text-align: center; padding: 2rem; background: white; border-radius: 12px;">
                     <i class="fas fa-circle-notch fa-spin fa-3x" style="color: var(--color-primary); margin-bottom: 1rem;"></i>
-                    <p style="font-weight: 600; color: #475569;">AI is crafting your photoshoot...</p>
-                    <p style="font-size: 0.85rem; color: #94a3b8;">Generating 6 unique variations. This may take up to 30 seconds.</p>
+                    <p id="loadingText" style="font-weight: 600; color: #475569;">AI is crafting your photoshoot...</p>
+                    <p style="font-size: 0.85rem; color: #94a3b8;">Creating high-res variations.</p>
                 </div>
 
                 <div id="errorMessage" class="error-message" style="margin-top: 1rem;"></div>

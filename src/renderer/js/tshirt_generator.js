@@ -7,16 +7,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('tshirtCanvas');
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
+    // View Switcher
+    const viewFrontBtn = document.getElementById('viewFrontBtn');
+    const viewBackBtn = document.getElementById('viewBackBtn');
+
     // Controls
     const baseUpload = document.getElementById('baseUpload');
+    const baseBackUpload = document.getElementById('baseBackUpload'); // NEW
     const colorPalette = document.getElementById('colorPalette');
     const customColorPicker = document.getElementById('customColorPicker');
     const bgColorPicker = document.getElementById('bgColorPicker');
 
-    // Design Controls
+    // Design Controls (Front)
     const designUpload = document.getElementById('designUpload');
     const designControls = document.getElementById('designControls');
     const removeDesignBtn = document.getElementById('removeDesignBtn');
+
+    // Design Controls (Back) - NEW
+    const designBackUpload = document.getElementById('designBackUpload');
+    const designBackControls = document.getElementById('designBackControls');
+    const removeBackDesignBtn = document.getElementById('removeBackDesignBtn');
 
     // Label Controls
     const labelUpload = document.getElementById('labelUpload');
@@ -28,38 +38,38 @@ document.addEventListener('DOMContentLoaded', () => {
     const aiTheme = document.getElementById('aiTheme');
     const resultGrid = document.getElementById('resultGrid');
     const aiLoading = document.getElementById('aiLoading');
+    const loadingText = document.getElementById('loadingText');
     const resultsArea = document.getElementById('resultsArea');
     const downloadMockupBtn = document.getElementById('downloadMockupBtn');
     const errorMessage = document.getElementById('errorMessage');
 
     // --- STATE ---
     let state = {
+        currentView: 'front', // 'front' or 'back'
         width: 1024,
         height: 1024,
-        baseImage: null,  // Image Object
         shirtColor: '#ffffff',
         bgColor: '#f3f4f6',
 
-        design: {
-            image: null, // Image Object
-            x: 50, y: 40, // Percent
-            scale: 100, // Percent (relative to shirt width)
-            rotate: 0 // Degrees
-        },
+        // Front Assets
+        baseImage: null,
+        design: { image: null, x: 50, y: 40, scale: 100, rotate: 0 },
+        label: { image: null, x: 50, y: 15, scale: 15, rotate: 0 },
 
-        label: {
-            image: null,
-            x: 50, y: 15,
-            scale: 15,
-            rotate: 0
-        }
+        // Back Assets
+        baseBackImage: null,
+        backDesign: { image: null, x: 50, y: 40, scale: 100, rotate: 0 }
     };
 
     // --- INITIALIZATION ---
     function init() {
-        // Set canvas resolution high, display size via CSS
         canvas.width = state.width;
         canvas.height = state.height;
+
+        // Inject Sliders dynamically to avoid HTML duplication
+        injectSliders(designControls, 'design');
+        injectSliders(labelControls, 'label');
+        injectSliders(designBackControls, 'backDesign');
 
         // Render Color Palette
         PRESET_COLORS.forEach(color => {
@@ -75,12 +85,43 @@ document.addEventListener('DOMContentLoaded', () => {
             };
             colorPalette.appendChild(btn);
         });
-
-        // Set Default active color
         colorPalette.children[0].classList.add('active');
 
-        // Initial Draw (SVG Fallback)
         draw();
+    }
+
+    function injectSliders(container, prefix) {
+        container.innerHTML = `
+            <div class="slider-group">
+                <label><span>Position X</span> <span id="${prefix}XVal">50%</span></label>
+                <input type="range" class="slider-input" id="${prefix}X" min="0" max="100" value="50">
+            </div>
+            <div class="slider-group">
+                <label><span>Position Y</span> <span id="${prefix}YVal">40%</span></label>
+                <input type="range" class="slider-input" id="${prefix}Y" min="0" max="100" value="40">
+            </div>
+            <div class="slider-group">
+                <label><span>Scale</span> <span id="${prefix}ScaleVal">100%</span></label>
+                <input type="range" class="slider-input" id="${prefix}Scale" min="10" max="200" value="100">
+            </div>
+            <div class="slider-group" style="margin-bottom: 0;">
+                <label><span>Rotate</span> <span id="${prefix}RotateVal">0°</span></label>
+                <input type="range" class="slider-input" id="${prefix}Rotate" min="0" max="360" value="0">
+            </div>
+        `;
+
+        // Attach listeners immediately
+        ['X', 'Y', 'Scale', 'Rotate'].forEach(prop => {
+            const input = container.querySelector(`#${prefix}${prop}`);
+            const display = container.querySelector(`#${prefix}${prop}Val`);
+
+            input.addEventListener('input', (e) => {
+                const val = parseInt(e.target.value);
+                state[prefix][prop.toLowerCase()] = val;
+                display.textContent = prop === 'Rotate' ? val + '°' : val + '%';
+                draw();
+            });
+        });
     }
 
     // --- HELPERS ---
@@ -97,23 +138,33 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    // --- DRAWING LOGIC (CORE) ---
+    function switchView(view) {
+        state.currentView = view;
+        viewFrontBtn.classList.toggle('active', view === 'front');
+        viewBackBtn.classList.toggle('active', view === 'back');
+        draw();
+    }
+
+    // --- DRAWING LOGIC ---
     function draw() {
         // 1. Fill Background
         ctx.fillStyle = state.bgColor;
         ctx.fillRect(0, 0, state.width, state.height);
 
-        // 2. Draw T-Shirt Base
-        if (state.baseImage) {
-            drawCustomBase();
+        // 2. Determine Assets based on View
+        let currentBase = state.currentView === 'front' ? state.baseImage : state.baseBackImage;
+
+        // If no specific back base, try to use front base as fallback (or SVG)
+        // But user requirement implies distinct upload. If missing, we fallback to SVG or Front Base?
+        // Let's fallback to SVG default if null
+        if (currentBase) {
+            drawCustomBase(currentBase);
         } else {
             drawSvgBase();
         }
     }
 
-    function drawCustomBase() {
-        const img = state.baseImage;
-
+    function drawCustomBase(img) {
         // Calculate Aspect Fit
         const imgAspect = img.width / img.height;
         const canvasAspect = state.width / state.height;
@@ -131,71 +182,63 @@ document.addEventListener('DOMContentLoaded', () => {
             drawY = 0;
         }
 
-        // --- COMPOSITING MAGIC FOR REALISTIC COLOR ---
-        // Create an offscreen canvas to handle the multiply effect without affecting background
         const offCanvas = document.createElement('canvas');
         offCanvas.width = state.width;
         offCanvas.height = state.height;
         const offCtx = offCanvas.getContext('2d');
 
-        // A. Draw Base Texture
+        // A. Draw Base
         offCtx.drawImage(img, drawX, drawY, drawW, drawH);
 
-        // B. Colorize: Source-In (Keep alpha of shirt, fill with color)
+        // B. Colorize (Source-In)
         offCtx.globalCompositeOperation = 'source-in';
         offCtx.fillStyle = state.shirtColor;
         offCtx.fillRect(0, 0, state.width, state.height);
 
-        // C. Restore Texture: Multiply (Original image over color)
+        // C. Multiply Texture
         offCtx.globalCompositeOperation = 'multiply';
         offCtx.drawImage(img, drawX, drawY, drawW, drawH);
 
-        // D. Clean Edges: Destination-In (Cut everything outside original alpha)
+        // D. Destination-In (Cut to shape)
         offCtx.globalCompositeOperation = 'destination-in';
         offCtx.drawImage(img, drawX, drawY, drawW, drawH);
 
-        // Draw generated shirt to main canvas
+        // Draw to Main Canvas
         ctx.drawImage(offCanvas, 0, 0);
 
-        // --- DRAW USER CONTENT (Design & Label) ---
-        // Define draw area (usually full canvas for custom base)
+        // Draw Content Area (Approx full canvas for custom image)
         drawUserContent(0, 0, state.width, state.height);
 
-        // --- FINAL SHADOW OVERLAY ---
-        // Add a light multiply of the original image on top to simulate folds over the design
+        // Shadow Overlay
         ctx.save();
         ctx.globalCompositeOperation = 'multiply';
-        ctx.globalAlpha = 0.3; // Adjust for realism intensity
+        ctx.globalAlpha = 0.3;
         ctx.drawImage(img, drawX, drawY, drawW, drawH);
         ctx.restore();
     }
 
     function drawSvgBase() {
-        // Fallback for when no image is uploaded
         const scale = state.width / 512;
-        const p = new Path2D(DEFAULT_PATH_BASE);
+        const path = new Path2D("M378.5,64.5c-16.5,19-33.9,26-56.3,26c-14.9,0-33.6-6.8-55.6-21.1C259.7,65.1,250,64,250,64s-16.5,1.1-22.6,5.4 C205.4,83.7,186.7,90.5,171.8,90.5c-22.4,0-39.8-7-56.3-26c-3.5-4-16.8-14.6-28.7-4.1L34.6,110c-14.7,12.9-14.5,36.6-0.5,50.1 l40.5,38.9c6,5.8,15.9,5.2,20.8-1.6l16.5-22.5V418c0,16.6,13.4,30,30,30h228c16.6,0,30-13.4,30-30V174.9l16.5,22.5 c4.9,6.7,14.8,7.4,20.8,1.6l40.5-38.9c14-13.5,14.2-37.2-0.5-50.1l-52.2-49.6C412.3,50.9,383.2,59.1,378.5,64.5z");
 
         ctx.save();
         ctx.translate((state.width - 512*scale)/2, (state.height - 512*scale)/2);
         ctx.scale(scale, scale);
 
-        // Color
         ctx.fillStyle = state.shirtColor;
         ctx.shadowColor = "rgba(0,0,0,0.3)";
         ctx.shadowBlur = 20;
-        ctx.fill(p);
+        ctx.fill(path);
         ctx.shadowBlur = 0;
         ctx.restore();
 
-        // Draw Content (Clipped to shirt path)
+        // Clip & Draw Content
         ctx.save();
         ctx.translate((state.width - 512*scale)/2, (state.height - 512*scale)/2);
         ctx.scale(scale, scale);
-        ctx.clip(p);
-        // Reset transform for drawing content inside clip
+        ctx.clip(path);
         ctx.setTransform(1,0,0,1,0,0);
 
-        // Calculate SVG bounds in canvas coords for placement
         const svgW = 512 * scale;
         const svgH = 512 * scale;
         const svgX = (state.width - svgW)/2;
@@ -206,14 +249,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function drawUserContent(areaX, areaY, areaW, areaH) {
-        // 1. LABEL (Behind design usually, or neck)
-        if (state.label.image) {
-            drawImageProps(state.label.image, state.label, areaX, areaY, areaW, areaH);
-        }
-
-        // 2. DESIGN
-        if (state.design.image) {
-            drawImageProps(state.design.image, state.design, areaX, areaY, areaW, areaH);
+        if (state.currentView === 'front') {
+            // FRONT: Label & Design
+            if (state.label.image) {
+                drawImageProps(state.label.image, state.label, areaX, areaY, areaW, areaH);
+            }
+            if (state.design.image) {
+                drawImageProps(state.design.image, state.design, areaX, areaY, areaW, areaH);
+            }
+        } else {
+            // BACK: Design Only (No Label)
+            if (state.backDesign.image) {
+                drawImageProps(state.backDesign.image, state.backDesign, areaX, areaY, areaW, areaH);
+            }
         }
     }
 
@@ -225,7 +273,6 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.translate(centerX, centerY);
         ctx.rotate((props.rotate * Math.PI) / 180);
 
-        // Scale logic: 100% scale = 40% of shirt width
         const baseSize = areaW * 0.4;
         const renderWidth = baseSize * (props.scale / 100);
         const renderHeight = renderWidth * (img.height / img.width);
@@ -237,20 +284,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- EVENT LISTENERS ---
 
-    // 1. Upload Base
+    // View Switchers
+    viewFrontBtn.addEventListener('click', () => switchView('front'));
+    viewBackBtn.addEventListener('click', () => switchView('back'));
+
+    // 1. Base Uploads
     baseUpload.addEventListener('change', async (e) => {
         if(e.target.files[0]) {
             state.baseImage = await fileToImage(e.target.files[0]);
-            document.getElementById('resetBaseBtn').style.display = 'block';
-            draw();
+            if(state.currentView === 'front') draw();
         }
     });
-
-    document.getElementById('resetBaseBtn').addEventListener('click', () => {
-        state.baseImage = null;
-        baseUpload.value = '';
-        document.getElementById('resetBaseBtn').style.display = 'none';
-        draw();
+    baseBackUpload.addEventListener('change', async (e) => {
+        if(e.target.files[0]) {
+            state.baseBackImage = await fileToImage(e.target.files[0]);
+            // Auto switch to back view to show user
+            switchView('back');
+        }
     });
 
     // 2. Colors
@@ -258,22 +308,20 @@ document.addEventListener('DOMContentLoaded', () => {
         state.shirtColor = e.target.value;
         draw();
     });
-
     bgColorPicker.addEventListener('input', (e) => {
         state.bgColor = e.target.value;
         draw();
     });
 
-    // 3. Design
+    // 3. Front Design
     designUpload.addEventListener('change', async (e) => {
         if(e.target.files[0]) {
             state.design.image = await fileToImage(e.target.files[0]);
             designControls.style.display = 'block';
             removeDesignBtn.style.display = 'block';
-            draw();
+            switchView('front');
         }
     });
-
     removeDesignBtn.addEventListener('click', () => {
         state.design.image = null;
         designUpload.value = '';
@@ -282,29 +330,32 @@ document.addEventListener('DOMContentLoaded', () => {
         draw();
     });
 
-    // Design Sliders
-    ['X', 'Y', 'Scale', 'Rotate'].forEach(prop => {
-        const input = document.getElementById(`design${prop}`);
-        const valDisplay = document.getElementById(`design${prop}Val`);
-
-        input.addEventListener('input', (e) => {
-            const val = parseInt(e.target.value);
-            state.design[prop.toLowerCase()] = val;
-            valDisplay.textContent = prop === 'Rotate' ? val + '°' : val + '%';
-            draw();
-        });
+    // 4. Back Design
+    designBackUpload.addEventListener('change', async (e) => {
+        if(e.target.files[0]) {
+            state.backDesign.image = await fileToImage(e.target.files[0]);
+            designBackControls.style.display = 'block';
+            removeBackDesignBtn.style.display = 'block';
+            switchView('back');
+        }
+    });
+    removeBackDesignBtn.addEventListener('click', () => {
+        state.backDesign.image = null;
+        designBackUpload.value = '';
+        designBackControls.style.display = 'none';
+        removeBackDesignBtn.style.display = 'none';
+        draw();
     });
 
-    // 4. Label
+    // 5. Label (Front Only)
     labelUpload.addEventListener('change', async (e) => {
         if(e.target.files[0]) {
             state.label.image = await fileToImage(e.target.files[0]);
             labelControls.style.display = 'block';
             removeLabelBtn.style.display = 'block';
-            draw();
+            switchView('front');
         }
     });
-
     removeLabelBtn.addEventListener('click', () => {
         state.label.image = null;
         labelUpload.value = '';
@@ -313,28 +364,15 @@ document.addEventListener('DOMContentLoaded', () => {
         draw();
     });
 
-    // Label Sliders
-    ['X', 'Y', 'Scale'].forEach(prop => {
-        const input = document.getElementById(`label${prop}`);
-        const valDisplay = document.getElementById(`label${prop}Val`);
-
-        input.addEventListener('input', (e) => {
-            const val = parseInt(e.target.value);
-            state.label[prop.toLowerCase()] = val;
-            valDisplay.textContent = val + '%';
-            draw();
-        });
-    });
-
-    // Download Mockup
+    // Download Mockup (Current View)
     downloadMockupBtn.addEventListener('click', () => {
         const link = document.createElement('a');
-        link.download = 'tshirt-mockup.png';
+        link.download = `tshirt-mockup-${state.currentView}.png`;
         link.href = canvas.toDataURL('image/png');
         link.click();
     });
 
-    // --- AI GENERATION ---
+    // --- AI GENERATION (12 PHOTOS LOGIC) ---
     generateAiBtn.addEventListener('click', async () => {
         const theme = aiTheme.value;
 
@@ -345,39 +383,85 @@ document.addEventListener('DOMContentLoaded', () => {
         errorMessage.style.display = 'none';
         generateAiBtn.disabled = true;
 
-        try {
-            // Get Canvas as JPEG (smaller payload)
-            const base64Image = canvas.toDataURL('image/jpeg', 0.9).split(',')[1];
+        // Helper to capture view
+        const captureView = async (viewName) => {
+            switchView(viewName);
+            // Allow a micro-tick for canvas to repaint
+            await new Promise(r => setTimeout(r, 50));
+            return canvas.toDataURL('image/jpeg', 0.9).split(',')[1];
+        };
 
-            // Call Backend
-            const response = await window.electron.invoke('/api/generate-tshirt-photos', {
-                base64Image,
+        try {
+            // 1. Capture Front
+            loadingText.textContent = "Capturing Front Design...";
+            const frontB64 = await captureView('front');
+
+            // 2. Capture Back (if exists)
+            let backB64 = null;
+            // We consider back design exists if there is a back design image UPLOADED or a Specific Back Base
+            // User said: "jika user tidak mengupload untuk bagian belakang, kaos hasil generate photo hasil nya sudah benar seperti sekarang"
+            // So trigger only if back design is present.
+            if (state.backDesign.image || (state.baseBackImage && state.baseBackImage !== state.baseImage)) {
+                loadingText.textContent = "Capturing Back Design...";
+                backB64 = await captureView('back');
+            }
+
+            // Restore view to front for user experience
+            switchView('front');
+
+            let finalImages = [];
+
+            // 3. Request AI - Front
+            loadingText.textContent = "Generating Front Photos (1/2)...";
+            const frontRes = await window.electron.invoke('/api/generate-tshirt-photos', {
+                base64Image: frontB64,
                 theme
             });
-
-            if (response.success && response.data.images) {
-                resultsArea.style.display = 'block';
-
-                response.data.images.forEach((b64, idx) => {
-                    const div = document.createElement('div');
-                    div.className = 'result-item';
-
-                    const img = document.createElement('img');
-                    img.src = `data:image/jpeg;base64,${b64}`;
-
-                    const btn = document.createElement('a');
-                    btn.className = 'download-btn';
-                    btn.href = img.src;
-                    btn.download = `tshirt_ai_${idx}.jpg`;
-                    btn.innerHTML = '<i class="fas fa-download"></i> Save';
-
-                    div.appendChild(img);
-                    div.appendChild(btn);
-                    resultGrid.appendChild(div);
-                });
+            if (frontRes.success) {
+                // Tag them as front
+                finalImages = finalImages.concat(frontRes.data.images.map(img => ({ data: img, type: 'Front View' })));
             } else {
-                throw new Error(response.error || "Unknown AI error");
+                throw new Error("Front generation failed: " + frontRes.error);
             }
+
+            // 4. Request AI - Back (if applicable)
+            if (backB64) {
+                loadingText.textContent = "Generating Back Photos (2/2)...";
+                const backRes = await window.electron.invoke('/api/generate-tshirt-photos', {
+                    base64Image: backB64,
+                    theme
+                });
+                if (backRes.success) {
+                    finalImages = finalImages.concat(backRes.data.images.map(img => ({ data: img, type: 'Back View' })));
+                }
+            }
+
+            // 5. Render Results
+            resultsArea.style.display = 'block';
+
+            finalImages.forEach((item, idx) => {
+                const div = document.createElement('div');
+                div.className = 'result-item';
+
+                // Badge for View Type
+                const badge = document.createElement('div');
+                badge.className = 'result-badge';
+                badge.textContent = item.type;
+
+                const img = document.createElement('img');
+                img.src = `data:image/jpeg;base64,${item.data}`;
+
+                const btn = document.createElement('a');
+                btn.className = 'download-btn';
+                btn.href = img.src;
+                btn.download = `tshirt_ai_${idx}.jpg`;
+                btn.innerHTML = '<i class="fas fa-download"></i> Save';
+
+                div.appendChild(badge);
+                div.appendChild(img);
+                div.appendChild(btn);
+                resultGrid.appendChild(div);
+            });
 
         } catch (error) {
             errorMessage.textContent = "Generation Failed: " + error.message;
