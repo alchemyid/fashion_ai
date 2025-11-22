@@ -12,8 +12,8 @@
 </head>
 <body>
 <div class="dashboard-layout">
-    <!-- Navbar -->
-    <div id="navbar-container"></div>
+    <!-- Navbar will be loaded here -->
+
     <main class="content">
         <div class="content-header">
             <h1><i class="fas fa-cog"></i> Setting</h1>
@@ -31,13 +31,9 @@
         </div>
     </main>
 </div>
+<script src="js/navbar.js"></script>
 <script>
-    // Load navbar
-    fetch('components/navbar.html')
-        .then(res => res.text())
-        .then(html => {
-            document.getElementById('navbar-container').innerHTML = html;
-        });
+    loadNavbar('setting');
 </script>
 <script src="js/setting.js"></script>
 </body>

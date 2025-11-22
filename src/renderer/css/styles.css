@@ -221,6 +221,10 @@ body {
     justify-content: center;
     gap: 0.5rem;
     transition: background var(--transition-speed);
+    font-size: 1rem;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+    text-decoration: none;
 }
 
 .btn-logout:hover {

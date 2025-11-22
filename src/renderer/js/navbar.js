@@ -22,7 +22,10 @@ async function loadNavbar(currentPage) {
 
     // Set username
     const username = localStorage.getItem('username') || 'Admin';
-    document.getElementById('userName').textContent = username;
+    const userNameElement = document.getElementById('userName');
+    if (userNameElement) {
+        userNameElement.textContent = username;
+    }
 }
 
 function toggleSubmenu(element) {
@@ -50,13 +53,7 @@ function toggleSubmenu(element) {
 }
 
 function logout() {
-    // Only remove logged_in status, keep remember_me and credentials if checked
-    localStorage.removeItem('logged_in');
-    window.location.href = 'index.html';
-}
-
-
-// Check authentication
-if (!localStorage.getItem('logged_in')) {
+    // Clear all session data
+    localStorage.clear();
     window.location.href = 'index.html';
 }
