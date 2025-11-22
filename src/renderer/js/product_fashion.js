@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    loadNavbar('by_command');
+    loadNavbar('product_fashion');
 
     const STYLE_PRESETS = [
         // --- Basic & Standard ---

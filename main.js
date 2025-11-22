@@ -67,7 +67,7 @@ function startAPIServer() {
     apiApp.use(express.urlencoded({ limit: '2048mb', extended: true }));
     apiApp.use(cors());
 
-    const imageService = require('./src/backend/services/image.service');
+    const imageService = require('./src/backend/services/product_fashion.service');
     const tshirtService = require('./src/backend/services/tshirt.service');
     const videoService = require('./src/backend/services/video.service');
     const audioService = require('./src/backend/services/audio.service');
