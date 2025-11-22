@@ -1,0 +1,171 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Fashion Stylist - Fashion AI Generator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        .stylist-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+        .outfit-card {
+            background: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            transition: transform 0.2s;
+        }
+        .outfit-card:hover {
+            transform: translateY(-5px);
+        }
+        .outfit-image {
+            width: 100%;
+            height: 400px;
+            object-fit: cover;
+        }
+        .outfit-details {
+            padding: 1.5rem;
+        }
+        .style-tag {
+            display: inline-block;
+            padding: 4px 12px;
+            background: #e2e8f0;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 0.5rem;
+        }
+        .advice-box {
+            background: #f0fff4;
+            border: 1px solid #c6f6d5;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            color: #276749;
+        }
+        /* Radio Custom Style */
+        .style-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 10px;
+            margin-bottom: 1.5rem;
+        }
+        .style-option input {
+            display: none;
+        }
+        .style-option label {
+            display: block;
+            padding: 10px;
+            text-align: center;
+            border: 2px solid var(--color-border);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        .style-option input:checked + label {
+            border-color: var(--color-primary);
+            background-color: #ebf4ff;
+            color: var(--color-primary);
+        }
+    </style>
+</head>
+<body>
+<div class="dashboard-layout">
+    <!-- Navbar loaded via JS -->
+
+    <main class="content">
+        <div class="content-header">
+            <h1><i class="fas fa-user-tie"></i> AI Fashion Stylist</h1>
+            <p>Upload produk Anda, dan AI akan membuatkan *Full Outfit Look* (Mix & Match) yang siap jual.</p>
+        </div>
+
+        <div class="stylist-container">
+            <!-- Left: Input -->
+            <div class="form-card" style="margin: 0; height: fit-content;">
+                <h3 class="font-bold text-xl mb-4">1. Upload Item Utama</h3>
+                
+                <label for="productInput" class="upload-box-wide">
+                    <div id="uploadPlaceholder">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <p>Upload Produk (Atasan/Bawahan)</p>
+                        <span>Format: PNG/JPG</span>
+                    </div>
+                    <img id="productPreview" src="" style="display:none; max-height: 300px; width: 100%; object-fit: contain; margin: 0 auto;">
+                    <input type="file" id="productInput" accept="image/*">
+                </label>
+
+                <h3 class="font-bold text-xl mb-2 mt-6">2. Pilih Gaya Outfit</h3>
+                <div class="style-selector">
+                    <div class="style-option">
+                        <input type="radio" name="style" id="style-casual" value="Casual Daily" checked>
+                        <label for="style-casual">Casual</label>
+                    </div>
+                    <div class="style-option">
+                        <input type="radio" name="style" id="style-formal" value="Smart Formal">
+                        <label for="style-formal">Formal</label>
+                    </div>
+                    <div class="style-option">
+                        <input type="radio" name="style" id="style-street" value="Streetwear Hype">
+                        <label for="style-street">Streetwear</label>
+                    </div>
+                    <div class="style-option">
+                        <input type="radio" name="style" id="style-summer" value="Summer Beach">
+                        <label for="style-summer">Summer</label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Target Gender</label>
+                    <select id="genderSelect" style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1;">
+                        <option value="Female Model">Wanita</option>
+                        <option value="Male Model">Pria</option>
+                        <option value="Unisex Model">Unisex</option>
+                    </select>
+                </div>
+
+                <button id="generateBtn" class="btn-execute" style="width: 100%; justify-content: center; margin-top: 1rem;" disabled>
+                    <i class="fas fa-magic"></i> Generate Outfit Look
+                </button>
+            </div>
+
+            <!-- Right: Result -->
+            <div id="resultArea">
+                <!-- Default Empty State -->
+                <div class="form-card" style="margin: 0; text-align: center; padding: 4rem 2rem; color: #a0aec0;">
+                    <i class="fas fa-tshirt" style="font-size: 4rem; margin-bottom: 1rem; opacity: 0.3;"></i>
+                    <h3>Hasil Mix & Match</h3>
+                    <p>Hasil foto outfit dan saran styling akan muncul di sini.</p>
+                </div>
+            </div>
+        </div>
+        
+        <div id="loading" style="display: none; position: fixed; inset: 0; background: rgba(255,255,255,0.9); z-index: 99; align-items: center; justify-content: center; flex-direction: column;">
+            <i class="fas fa-spinner fa-spin fa-3x" style="color: var(--color-primary); margin-bottom: 1rem;"></i>
+            <h3 style="color: #2d3748;">Sedang Meracik Outfit...</h3>
+            <p style="color: #718096;">AI sedang menganalisis produk dan mencari padanan terbaik.</p>
+        </div>
+
+        <div id="errorMessage" class="error-message" style="display:none; position: fixed; bottom: 20px; right: 20px; z-index: 100; width: 300px;"></div>
+
+    </main>
+</div>
+
+<script src="js/navbar.js"></script>
+<script src="js/ai_stylist.js"></script>
+<script>
+    loadNavbar('ai_stylist');
+</script>
+</body>
+</html>

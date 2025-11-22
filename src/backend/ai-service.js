@@ -914,6 +914,109 @@ Result must be a photorealistic image.
     }
 }
 
+/**
+ * FITUR BARU: AI FASHION STYLIST
+ * 1. Analisis produk (Gemini Vision) -> Dapatkan warna, jenis, bahan.
+ * 2. Generate gambar outfit (Imagen) -> Berdasarkan analisis + Style pilihan.
+ */
+async function generateStylistOutfit(productBase64, styleName, gender) {
+    if (!API_KEY) return { success: false, error: "API Key missing." };
+
+    // LANGKAH 1: Analisis Produk (Vision)
+    // Kita minta AI menjadi Fashion Stylist dan mendeskripsikan outfit lengkap
+    const visionPrompt = `
+    You are a high-end Fashion Stylist.
+    1. Analyze this product image carefully (color, material, type).
+    2. Create a complete outfit recommendation based on this product for a ${gender} with the style "${styleName}".
+    3. Describe the FINAL IMAGE prompt for an AI image generator. The prompt must include the user's product as the centerpiece, combined with matching items (pants/shoes/accessories).
+    4. Also provide a short "Styling Advice" for the customer in Bahasa Indonesia.
+
+    Return JSON format:
+    {
+        "imagePrompt": "A photorealistic full body shot of a ${gender} wearing [describe user product detailed] paired with [describe matching items]. Lighting: [style lighting]. Background: [style background]. 8k, masterpiece.",
+        "advice": "Saran styling dalam Bahasa Indonesia..."
+    }
+    `;
+
+    try {
+        // Call Gemini Vision
+        const visionPayload = {
+            contents: [{
+                role: "user",
+                parts: [
+                    { text: visionPrompt },
+                    { inlineData: { mimeType: "image/png", data: productBase64 } }
+                ]
+            }],
+            generationConfig: { responseMimeType: "application/json" }
+        };
+
+        const visionRes = await fetchWithRetry(GEMINI_TEXT_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(visionPayload)
+        });
+
+        if (!visionRes.candidates?.[0]?.content?.parts?.[0]?.text) {
+            throw new Error("Gagal menganalisis produk.");
+        }
+
+        const analysis = JSON.parse(visionRes.candidates[0].content.parts[0].text);
+        const finalPrompt = analysis.imagePrompt;
+        const advice = analysis.advice;
+
+        console.log("[Stylist] Prompt generated:", finalPrompt);
+
+        // LANGKAH 2: Generate Image (Imagen)
+        // Kita gunakan prompt dari Vision + Reference Image (User Product) agar produk tetap mirip
+        // NOTE: Kita gunakan teknik 'generateByReference' logic di sini
+        
+        // Karena Imagen endpoint butuh struktur spesifik untuk editing/refining
+        // Kita pakai endpoint Imagen standar tapi dengan prompt yang sangat deskriptif hasil analisis tadi
+        // Untuk hasil terbaik, kita bisa kirim image sebagai referensi ke Imagen (jika didukung endpoint)
+        // Namun di sini kita pakai Text-to-Image yang sangat dipandu oleh Vision.
+        
+        // OPSI TERBAIK SAAT INI: Gunakan endpoint Gemini Image Edit (seperti Product Swap)
+        // agar produk user dipertahankan strukturnya.
+        
+        const imagePayload = {
+            contents: [
+                {
+                    role: "user",
+                    parts: [
+                        { text: finalPrompt }, 
+                        { text: "Ensure the main product looks exactly like the reference image provided." },
+                        { inlineData: { mimeType: "image/png", data: productBase64 } }
+                    ]
+                }
+            ],
+            generationConfig: { responseModalities: ["IMAGE"] }
+        };
+
+        const imageRes = await fetchWithRetry(GEMINI_IMAGE_EDIT_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(imagePayload)
+        });
+
+        const imagePart = imageRes.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+        
+        if (imagePart?.inlineData?.data) {
+            return {
+                success: true,
+                imageBase64: imagePart.inlineData.data,
+                stylingAdvice: advice
+            };
+        } else {
+            throw new Error("Gagal men-generate gambar outfit.");
+        }
+
+    } catch (error) {
+        console.error("AI Stylist Error:", error);
+        return { success: false, error: error.message };
+    }
+}
+
 
 module.exports = {
     generateImage,
@@ -928,5 +1031,6 @@ module.exports = {
     recommendSfx,
     generateCaptionAndHashtags,
     removeBackground,
-    generateTshirtPhotos // Export fungsi baru
+    generateTshirtPhotos,
+    generateStylistOutfit// Export fungsi baru
 };

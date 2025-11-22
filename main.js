@@ -475,6 +475,37 @@ function startAPIServer() {
             res.status(500).json({ success: false, error: error.message });
         }
     });
+    
+    // Tshirt Creator
+    apiApp.post('/api/generate-tshirt-photos', async (req, res) => {
+        try {
+            const { base64Image, theme } = req.body;
+            const result = await aiService.generateTshirtPhotos(base64Image, theme);
+
+            if (result.success) {
+                const count = result.images.length;
+                
+                const stats = store.get('stats');
+                stats.totalRequests += count;
+                stats.todayRequests += count;
+                stats.currentMonthRequests += count;
+                
+                // Track as images
+                stats.totalImages += count;
+                stats.currentMonthImages = (stats.currentMonthImages || 0) + count;
+                
+                store.set('stats', stats);
+
+                res.json({ success: true, data: { images: result.images } });
+            } else {
+                trackUsage(false, true);
+                res.status(500).json({ success: false, error: result.error });
+            }
+        } catch (error) {
+            trackUsage(false, true);
+            res.status(500).json({ success: false, error: error.message });
+        }
+    });
 
     // Start Server
     const PORT = process.env.API_PORT || 8000;
