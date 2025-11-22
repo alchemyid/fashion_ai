@@ -169,8 +169,12 @@ async function generateByReference(referenceBase64, prompt, sampleCount = 1) {
     const systemPrompt = `
 You are an AI image editor. Your job is to take a user's reference image and modify it based on their text prompt.
 You must follow the text prompt exactly.
-The output should be a new image that combines the reference image's subject with the text prompt's instructions.
-Do not just describe the image; you must output the final modified image.
+--- RULES ---
+1. The output should be a new image that combines the reference image's subject with the text prompt's instructions.
+2. Do not just describe the image; you must output the final modified image.
+3. The output image must be photorealistic and high quality.
+4. Maintain the core elements of the reference image unless the prompt specifies otherwise.
+5. **OUTPUT**: The output MUST be a PNG with a transparent background.
 `.trim();
     const payload = {
         contents: [
@@ -936,6 +940,9 @@ async function generateStylistOutfit(productBase64, styleName, gender) {
     1. Analyze this product image (color, material, style).
     2. Create a complete outfit mix & match for a ${gender} with "${styleName}" style.
     3. Generate an Image Prompt to visualize this outfit.
+    4. Provide styling advice in Indonesian on how to wear this outfit confidently.
+    5. Ensure the main product in the input image is worn by the model and looks exactly the same.
+    6. Advice menggunakan bahasa indonesia.
     
     IMPORTANT: Return ONLY a JSON object. No markdown, no extra text.
     Format:
