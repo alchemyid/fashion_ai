@@ -10,7 +10,7 @@ const IMAGEN_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/
 // URL untuk FITUR 2 & 3 (Image Editing / Vision)
 const GEMINI_IMAGE_EDIT_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent?key=${API_KEY}`;
 // URL untuk FITUR 3 & 4 (Analisis Teks/Vision)
-const GEMINI_TEXT_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`;
+const GEMINI_TEXT_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${API_KEY}`;
 // URL untuk FITUR 4 (Text-to-Speech)
 const GEMINI_TTS_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${API_KEY}`;
 
@@ -370,531 +370,78 @@ ${shotType.desc}
 
 
 /**
- * FITUR 3 (Langkah A): Generate Video Prompt
- * UPDATE: Menambahkan parameter aiModel untuk durasi langkah (step) dinamis (8s atau 5s)
+ * TSHIRT CREATOR: Generate Photoshoot
+ * This is the new, powerful function that handles front and back designs in a single, efficient call.
  */
-async function generateVeoPrompt(productBase64, modelBase64, platform, duration, aiModel) {
-    if (!API_KEY) {
-        return { success: false, error: "API Key tidak ditemukan. Pastikan GEMINI_API_KEY diatur di .env" };
-    }
-
-    let platformInstruction = "";
-    switch(platform) {
-        case "tiktok": platformInstruction = "Gaya: Trendy, hook kuat, bahasa gaul."; break;
-        case "instagram": platformInstruction = "Gaya: Estetik, cinematic, storytelling, fokus pada 'vibe'."; break;
-        case "youtube": platformInstruction = "Gaya: Informatif, jelas, profesional, fokus fitur."; break;
-        case "shopee": platformInstruction = "Gaya: Direct-to-sales, persuasif, fokus CTA dan promo."; break;
-        default: platformInstruction = "Gaya: Iklan general.";
-    }
-
-    // [LOGIKA BARU] Tentukan durasi step berdasarkan model (default veo3 = 8s)
-    const step = (aiModel === 'meta') ? 5 : 8;
-    const modelName = (aiModel === 'meta') ? 'Meta AI' : 'Google Veo';
-
-    const systemPrompt = `
-You are an expert E-commerce Scriptwriter for Video AI (${modelName}). Your task is to analyze user images and generate a video script based on platform and duration, specifically formatted for the ${step}-second clip limitation of this model.
-You MUST return your answer as a single, valid JSON object.
-
-The JSON object must have two keys:
-1. "fullScript": A string containing the complete shooting script, broken into **${step}-SECOND BLOCKS**. Include VISUAL, AUDIO, and VOICEOVER lines.
-2. "voiceoverScript": A string containing ONLY the voiceover lines, concatenated together, ready for a Text-to-Speech engine.
-
---- PENTING: CONTOH BLOK ${step} DETIK ---
-{
-  "fullScript": "0:00-0:${step < 10 ? '0'+step : step} | VISUAL: Cinematic extreme close-up pada tekstur produk. Kamera tilt up.\nAUDIO: Musik Lo-fi dimulai.\nVOICEOVER: Ini bukan sekadar produk.\n\n0:${step < 10 ? '0'+step : step}-0:${step*2} | VISUAL: Medium shot model memakai produk, berjalan di taman kota.\nAUDIO: Suara langkah kaki.\nVOICEOVER: Ini adalah gaya hidup.",
-  "voiceoverScript": "Ini bukan sekadar produk. Ini adalah gaya hidup."
-}
-`.trim();
-
-    const payload = {
-        contents: [
-            {
-                role: "user",
-                parts: [
-                    { "text": `Platform Target: ${platformInstruction}` },
-                    { "text": `**DURASI WAJIB**: Naskah HARUS pas untuk **${duration}**. Bagi naskah menjadi blok-blok ${step} detik (0:00-0:${step}, 0:${step}-0:${step*2}, dst).`},
-                    { "text": "--- GAMBAR PRODUK (Fokus di sini) ---" },
-                    { "inlineData": { "mimeType": "image/png", "data": productBase64 } },
-                    { "text": "--- GAMBAR MODEL (Gunakan ini untuk 'vibe' dan 'gaya') ---" },
-                    { "inlineData": { "mimeType": "image/png", "data": modelBase64 } },
-                    { "text": "--- TUGAS ANDA ---" },
-                    { "text": `Tulis naskah ${modelName} yang mempromosikan PRODUK dengan gaya MODEL, sesuai target platform dan durasi. Bagi menjadi blok ${step} detik. Kembalikan HANYA objek JSON yang valid.` }
-                ]
-            }
-        ],
-        systemInstruction: {
-            parts: [{ "text": systemPrompt }]
-        },
-        generationConfig: {
-            responseMimeType: "application/json"
-        }
-    };
-
-    try {
-        const result = await fetchWithRetry(GEMINI_TEXT_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-
-        if (result.candidates && result.candidates[0]) {
-            const jsonText = result.candidates[0].content.parts[0].text;
-            let scriptData;
-            try {
-                scriptData = JSON.parse(jsonText);
-            } catch (parseError) {
-                console.error("Gagal mem-parse JSON dari AI:", jsonText);
-                throw new Error("Respons AI bukan JSON yang valid.");
-            }
-            if (!scriptData || !scriptData.fullScript || typeof scriptData.voiceoverScript === 'undefined') {
-                throw new Error("JSON respons dari AI tidak memiliki kunci 'fullScript' atau 'voiceoverScript'.");
-            }
-            return { success: true, scriptData: scriptData };
-        } else {
-            throw new Error("API (Veo Prompt Gen) tidak mengembalikan 'candidates'.");
-        }
-    } catch (error) {
-        console.error('AI Generate Veo Prompt Error:', error);
-        return { success: false, error: error.message };
-    }
-}
-
-
-/**
- * FITUR 3 (Langkah B): Generate Video from Image (PLACEHOLDER)
- */
-async function generateVideoFromImage(prompt) {
-    console.log("Mencoba memanggil API Image-to-Video (Placeholder) dengan Teks:");
-    console.log("Prompt:", prompt);
-
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    return {
-        success: false,
-        error: "API Generasi Video (seperti Google Veo) adalah teknologi masa depan dan belum terintegrasi di aplikasi ini. Silakan nantikan update!"
-    };
-}
-
-
-/**
- * FITUR 4 (Langkah A): Generate Audio Script (Dinamis VEO/Meta)
- */
-async function generateAudioScript(productBase64, modelBase64, platform, duration, aiModel) {
-    if (!API_KEY) return { success: false, error: "API Key tidak ditemukan." };
-
-    let platformInstruction = "";
-    switch(platform) {
-        case "tiktok": platformInstruction = "Gaya: Trendy, hook kuat, bahasa gaul."; break;
-        case "instagram": platformInstruction = "Gaya: Estetik, cinematic, storytelling."; break;
-        case "youtube": platformInstruction = "Gaya: Informatif, jelas, profesional."; break;
-        case "shopee": platformInstruction = "Gaya: Direct-to-sales, persuasif, promo."; break;
-        default: platformInstruction = "Gaya: Iklan general.";
-    }
-
-    // [LOGIKA BARU] Tentukan durasi step berdasarkan model
-    const step = aiModel === 'meta' ? 5 : 8;
-    const modelName = aiModel === 'meta' ? 'Meta AI' : 'VEO3';
-
-    const systemPrompt = `
-You are an expert E-commerce Scriptwriter. Your task is to generate a video script specifically formatted into ${step}-second blocks for ${modelName}.
-You MUST return your answer as a single, valid JSON object.
-
-The JSON object must have two keys:
-1. "fullScript": A string containing the complete shooting script, broken into **${step}-SECOND BLOCKS**. Include VISUAL, AUDIO, and VOICEOVER lines.
-2. "voiceoverScript": A string containing ONLY the voiceover lines.
-
---- PENTING: CONTOH BLOK ${step} DETIK ---
-{
-  "fullScript": "0:00-0:${step < 10 ? '0'+step : step} | VISUAL: ...\nAUDIO: ...\nVOICEOVER: ...\n\n0:${step < 10 ? '0'+step : step}-0:${step*2} | VISUAL: ...",
-  "voiceoverScript": "..."
-}
-`.trim();
-
-    const payload = {
-        contents: [
-            {
-                role: "user",
-                parts: [
-                    { "text": `Platform Target: ${platformInstruction}` },
-                    { "text": `**DURASI WAJIB**: Naskah HARUS pas untuk **${duration}**. Bagi naskah menjadi blok-blok ${step} detik.`},
-                    { "text": "--- GAMBAR PRODUK ---" },
-                    { "inlineData": { "mimeType": "image/png", "data": productBase64 } },
-                    { "text": "--- GAMBAR MODEL ---" },
-                    { "inlineData": { "mimeType": "image/png", "data": modelBase64 } },
-                    { "text": `Tulis naskah iklan untuk ${modelName} (per ${step} detik). Kembalikan JSON.` }
-                ]
-            }
-        ],
-        systemInstruction: { parts: [{ "text": systemPrompt }] },
-        generationConfig: { responseMimeType: "application/json" }
-    };
-
-    try {
-        const result = await fetchWithRetry(GEMINI_TEXT_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-
-        if (result.candidates && result.candidates[0]) {
-            const jsonText = result.candidates[0].content.parts[0].text;
-            let scriptData;
-            try {
-                scriptData = JSON.parse(jsonText);
-            } catch (parseError) {
-                console.error("Gagal mem-parse JSON dari AI:", jsonText);
-                throw new Error("Respons AI bukan JSON yang valid.");
-            }
-            return { success: true, scriptData: scriptData };
-        } else {
-            throw new Error("API tidak mengembalikan candidates.");
-        }
-    } catch (error) {
-        console.error('AI Generate Audio Script Error:', error);
-        return { success: false, error: error.message };
-    }
-}
-
-
-/**
- * FITUR 4 (Langkah B): Generate Voiceover (Text-to-Speech)
- */
-async function generateVoiceover(script, voiceName) {
+async function generateTshirtPhotos(frontImage, backImage, theme) {
     if (!API_KEY) {
         return { success: false, error: "API Key tidak ditemukan." };
     }
 
-    const ttsPrompt = `Ucapkan dengan nada komersial yang engaging: ${script}`;
-
-    const payload = {
-        contents: [{
-            parts: [{ "text": ttsPrompt }]
-        }],
-        generationConfig: {
-            responseModalities: ["AUDIO"],
-            speechConfig: {
-                voiceConfig: {
-                    prebuiltVoiceConfig: { voiceName: voiceName }
-                }
-            }
-        },
-        model: "gemini-2.5-flash-preview-tts"
-    };
-
-    try {
-        const result = await fetchWithRetry(GEMINI_TTS_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-
-        const part = result?.candidates?.[0]?.content?.parts?.[0];
-        const audioData = part?.inlineData?.data;
-        const mimeType = part?.inlineData?.mimeType;
-
-        if (audioData && mimeType && mimeType.startsWith("audio/")) {
-            const rateMatch = mimeType.match(/rate=(\d+)/);
-            const sampleRate = (rateMatch && rateMatch[1]) ? parseInt(rateMatch[1], 10) : 24000;
-
-            return {
-                success: true,
-                audioBase64: audioData,
-                sampleRate: sampleRate
-            };
-        } else {
-            throw new Error("API (TTS) tidak mengembalikan data audio.");
-        }
-    } catch (error) {
-        console.error('AI Generate Voiceover Error:', error);
-        return {
-            success: false,
-            error: error.message,
-        };
-    }
-}
-
-
-/**
- * FITUR 4 (Langkah C): Rekomendasi Musik Latar (Text-to-Text)
- */
-async function recommendMusic(mood, script) {
-    if (!API_KEY) {
-        return { success: false, error: "API Key tidak ditemukan." };
-    }
-
-    const systemPrompt = "Anda adalah seorang Produser Musik profesional. Tugas Anda adalah merekomendasikan musik latar (backsound) untuk sebuah video.";
-    const userPrompt = `
-        Klien membutuhkan musik untuk video mereka.
-        Mood/Genre yang diinginkan: "${mood}"
-        Konteks skrip narasi video (untuk referensi tempo dan suasana): "${script || 'Tidak ada skrip diberikan, fokus pada mood.'}"
-
-        Berikan rekomendasi Anda dalam format yang jelas. Jelaskan dalam Bahasa Indonesia:
-        - **Deskripsi Trek:** Jelaskan seperti apa musiknya (instrumen, tempo, nuansa).
-        - **Penempatan:** Di mana musik ini harus digunakan (misal: "di seluruh video", "hanya di intro").
-        - **Mengapa:** Jelaskan mengapa pilihan ini cocok.
-    `;
-
-    const payload = {
-        contents: [{ parts: [{ text: userPrompt }] }],
-        systemInstruction: { parts: [{ "text": systemPrompt }] }
-    };
-
-    try {
-        const result = await fetchWithRetry(GEMINI_TEXT_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        if (result.candidates && result.candidates[0]) {
-            const text = result.candidates[0].content.parts[0].text;
-            return { success: true, recommendation: text.trim() };
-        } else {
-            throw new Error("API (Recommend Music) tidak mengembalikan 'candidates'.");
-        }
-    } catch (error) {
-        console.error('AI Recommend Music Error:', error);
-        return { success: false, error: error.message };
-    }
-}
-
-/**
- * FITUR 4 (Langkah D): Rekomendasi Efek Suara (Text-to-Text)
- */
-async function recommendSfx(script) {
-    if (!API_KEY) {
-        return { success: false, error: "API Key tidak ditemukan." };
-    }
-
-    const systemPrompt = "Anda adalah seorang Sound Designer (Desainer Suara) profesional. Tugas Anda adalah menganalisis skrip video dan merekomendasikan efek suara (SFX) untuk membuatnya lebih hidup.";
-    const userPrompt = `
-        Analisis skrip berikut:
-        ---
-        ${script}
-        ---
-
-        Buatlah 'cue sheet' (daftar isyarat) berisi rekomendasi SFX. Jelaskan dengan spesifik dalam Bahasa Indonesia:
-        - **Efek Suara (SFX):** Suara apa yang dibutuhkan (misal: "Klik Mouse", "Transisi Whoosh").
-        - **Pemicu (Cue):** Kapan suara itu harus muncul (kutip bagian skrip atau jelaskan adegannya).
-        - **Tujuan:** Mengapa SFX ini penting (misal: "menegaskan aksi", "transisi antar adegan").
-
-        Jika tidak ada SFX yang relevan, katakan demikian.
-    `;
-
-    const payload = {
-        contents: [{ parts: [{ text: userPrompt }] }],
-        systemInstruction: { parts: [{ "text": systemPrompt }] }
-    };
-
-    try {
-        const result = await fetchWithRetry(GEMINI_TEXT_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        if (result.candidates && result.candidates[0]) {
-            const text = result.candidates[0].content.parts[0].text;
-            return { success: true, recommendation: text.trim() };
-        } else {
-            throw new Error("API (Recommend SFX) tidak mengembalikan 'candidates'.");
-        }
-    } catch (error) {
-        console.error('AI Recommend SFX Error:', error);
-        return { success: false, error: error.message };
-    }
-}
-
-
-/**
- * FITUR 5: Generate Caption & Hashtags
- */
-async function generateCaptionAndHashtags(platform, productBase64, modelBase64, keywords) {
-    if (!API_KEY) {
-        return { success: false, error: "API Key tidak ditemukan." };
-    }
-
-    const systemPrompt = `
-You are a professional Social Media Manager and Copywriter.
-Your task is to generate an engaging caption and a set of relevant hashtags for a post on ${platform}.
-Based on the provided images (Product and/or Model) and keywords.
-
-Output MUST be a valid JSON object with two keys:
-1. "caption": The caption text (including emojis if suitable for the platform).
-2. "hashtags": A string of hashtags separated by spaces.
-`.trim();
-
-    const userParts = [
-        { text: `Platform: ${platform}` },
-        { text: `Keywords: ${keywords || "None"}` }
+    const hasBackDesign = !!backImage;
+    const poses = [
+        "Male model standing, full body shot, facing forward.",
+        "Male model walking towards camera, confident stride.",
+        "Close-up shot of the t-shirt fabric and design, worn by a model.",
+        "Male model sitting on a stool, relaxed pose.",
+        "Male model leaning against a wall, side profile.",
+        "Over-the-shoulder shot of a male model looking away."
     ];
 
-    if (productBase64) {
-        userParts.push({ text: "--- PRODUCT IMAGE ---" });
-        userParts.push({ inlineData: { mimeType: "image/png", data: productBase64 } });
-    }
-
-    if (modelBase64) {
-        userParts.push({ text: "--- MODEL/STYLE IMAGE ---" });
-        userParts.push({ inlineData: { mimeType: "image/png", data: modelBase64 } });
-    }
-
-    userParts.push({ text: "Generate the caption and hashtags now. Return ONLY JSON." });
-
-    const payload = {
-        contents: [{ role: "user", parts: userParts }],
-        systemInstruction: { parts: [{ text: systemPrompt }] },
-        generationConfig: { responseMimeType: "application/json" }
-    };
-
-    try {
-        const result = await fetchWithRetry(GEMINI_TEXT_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-
-        if (result.candidates && result.candidates[0]) {
-            const jsonText = result.candidates[0].content.parts[0].text;
-            let data;
-            try {
-                data = JSON.parse(jsonText);
-            } catch (e) {
-                console.error("Failed to parse JSON from Caption Gen:", jsonText);
-                throw new Error("AI response was not valid JSON.");
-            }
-            return { success: true, data: data };
-        } else {
-            throw new Error("API did not return candidates.");
-        }
-    } catch (error) {
-        console.error('AI Generate Caption Error:', error);
-        return { success: false, error: error.message };
-    }
-}
-
-/**
- * FITUR EXTRA: Remove Background (Khusus Logo/Watermark)
- * Berbeda dengan Segment Product, ini lebih agresif menghapus background putih pada grafis/teks.
- */
-async function removeBackground(imageBase64, typePrompt) {
-    if (!API_KEY) {
-        return { success: false, error: "API Key tidak ditemukan." };
-    }
-
-    // Prompt khusus untuk logo/text removal - DIUPDATE
-    const systemPrompt = `
-You are an expert graphic designer specialized in background removal for LOGOS and WATERMARKS.
-Your task is to take the provided image (likely a logo with a white or solid background) and remove the background COMPLETELY, creating a TRANSPARENT PNG.
-
---- STRICT RULES ---
-1.  **TARGET**: Isolate the logo text, icon, or symbol "${typePrompt}".
-2.  **ALPHA CHANNEL**: You MUST return an image with an ALPHA CHANNEL. All background pixels must have alpha=0 (transparent).
-3.  **WHITE REMOVAL**: If the logo is on a white box, the white box must be GONE. Only the logo itself should remain.
-4.  **OUTPUT**: Return ONLY the raw PNG image data with transparency.
-`.trim();
-
-    const payload = {
-        contents: [
-            {
-                role: "user",
-                parts: [
-                    { "text": `Remove the white/solid background from this logo. Make it transparent PNG.` },
-                    { "inlineData": { "mimeType": "image/png", "data": imageBase64 } }
-                ]
-            }
-        ],
-        systemInstruction: { parts: [{ "text": systemPrompt }] },
-        generationConfig: {
-            responseModalities: ["IMAGE"],
-            // Note: Gemini usually defaults to JPEG/PNG based on content, but we strongly imply PNG in prompt.
-        }
-    };
-
-    try {
-        const result = await fetchWithRetry(GEMINI_IMAGE_EDIT_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        if (result.candidates && result.candidates[0]) {
-            const candidate = result.candidates[0];
-            const imagePart = candidate?.content?.parts?.find(p => p.inlineData);
-            if (imagePart?.inlineData?.data) {
-                return { success: true, imageBase64: imagePart.inlineData.data };
-            } else {
-                throw new Error("API tidak mengembalikan data gambar.");
-            }
-        } else {
-            throw new Error("API tidak mengembalikan 'candidates'.");
-        }
-    } catch (error) {
-        console.error('AI Remove Background Error:', error);
-        return { success: false, error: error.message };
-    }
-}
-
-// --- HELPER FUNCTIONS ---
-function cleanJsonResponse(text) {
-    if (!text) return "{}";
-    // Hapus markdown formatting ```json ... ``` dan whitespace
-    return text.replace(/```json\n?|```/g, '').trim();
-}
-
-/**
- * TSHIRT CREATOR: Generate 6 Variasi Foto
- */
-async function generateTshirtPhotos(base64Image, theme) {
-    if (!API_KEY) {
-        return { success: false, error: "API Key tidak ditemukan." };
-    }
-
-    // Kita akan melakukan loop 6 kali untuk menghasilkan 6 variasi
-    const variationCount = 6;
     const apiCalls = [];
 
-    // Prompts variasi agar hasil tidak identik (Angle/Zoom)
-    const variations = [
-        "Eye-level shot, balanced composition",
-        "Close-up detail shot, sharp focus on fabric",
-        "High angle artistic shot",
-        "Slightly low angle, heroic look",
-        "Dynamic lighting, dramatic shadows",
-        "Soft diffused lighting, clean look"
-    ];
-
     const systemPrompt = `
-You are a professional Product Photographer. Your task is to transform the provided T-Shirt Mockup into a high-end, commercial product photograph.
-Theme: ${theme}.
-The design on the t-shirt MUST REMAIN EXACTLY THE SAME. Do not distort the logo or text.
-Focus on realistic lighting, fabric texture, and background atmosphere fitting the theme.
-Result must be a photorealistic image.
+You are a professional photoshoot director for a fashion brand. Your task is to generate a commercial photo of a model wearing the provided t-shirt mockup.
+You must strictly follow the theme and pose instructions. The design on the t-shirt MUST remain exactly the same. Do not alter or distort it.
+The final image must be photorealistic, 8k, with professional lighting and composition that matches the theme.
+Theme: "${theme}".
 `.trim();
 
-    for (let i = 0; i < variationCount; i++) {
-        const variationPrompt = `Transform this mockup into a professional photograph. Theme: ${theme}. Style: ${variations[i]}. Photorealistic, 8k. Keep design exact.`;
-
+    // Create calls for the Front Design
+    poses.forEach(pose => {
+        const prompt = `Generate a photorealistic image of a model wearing this t-shirt. View: FRONT. Pose: ${pose}`;
         const payload = {
             contents: [{
                 parts: [
-                    { text: variationPrompt },
-                    { inlineData: { mimeType: "image/png", data: base64Image } } // Input format PNG
+                    { text: prompt },
+                    { inlineData: { mimeType: "image/png", data: frontImage } }
                 ]
             }],
             systemInstruction: { parts: [{ text: systemPrompt }] },
             generationConfig: { responseModalities: ["IMAGE"] }
         };
+        apiCalls.push(fetchWithRetry(GEMINI_IMAGE_EDIT_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        }));
+    });
 
-        apiCalls.push(
-            fetchWithRetry(GEMINI_IMAGE_EDIT_API_URL, {
+    // Create calls for the Back Design if it exists
+    if (hasBackDesign) {
+        poses.forEach(pose => {
+            const prompt = `Generate a photorealistic image of a model wearing this t-shirt. View: BACK. Pose: ${pose.replace("facing forward", "facing away")}`;
+            const payload = {
+                contents: [{
+                    parts: [
+                        { text: prompt },
+                        { inlineData: { mimeType: "image/png", data: backImage } }
+                    ]
+                }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                generationConfig: { responseModalities: ["IMAGE"] }
+            };
+            apiCalls.push(fetchWithRetry(GEMINI_IMAGE_EDIT_API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
-            })
-        );
+            }));
+        });
     }
 
     try {
-        console.log(`[Tshirt Creator] Generating ${variationCount} variations for theme: ${theme}`);
-
-        // Jalankan semua request secara paralel
+        console.log(`[Tshirt Creator] Starting ${apiCalls.length} parallel API calls for theme: ${theme}`);
+        
         const results = await Promise.allSettled(apiCalls);
 
         const generatedImages = [];
@@ -908,22 +455,32 @@ Result must be a photorealistic image.
                 }
             } else {
                 const err = res.reason?.message || "Unknown error";
-                console.error(`Variation ${index + 1} failed:`, err);
+                console.error(`Image generation ${index + 1} failed:`, err);
                 errors.push(err);
             }
         });
 
-        if (generatedImages.length > 0) {
-            return { success: true, images: generatedImages, partial: generatedImages.length < variationCount };
-        } else {
-            throw new Error(`All generation attempts failed. Errors: ${errors.join(', ')}`);
+        if (generatedImages.length === 0) {
+            throw new Error(`All generation attempts failed. Last error: ${errors.pop()}`);
         }
+        
+        console.log(`[Tshirt Creator] Successfully generated ${generatedImages.length} images.`);
+        return { success: true, images: generatedImages };
 
     } catch (error) {
         console.error('AI Tshirt Generator Error:', error);
         return { success: false, error: error.message };
     }
 }
+
+
+// --- HELPER FUNCTIONS ---
+function cleanJsonResponse(text) {
+    if (!text) return "{}";
+    // Hapus markdown formatting ```json ... ``` dan whitespace
+    return text.replace(/```json\n?|```/g, '').trim();
+}
+
 
 /**
  * FITUR BARU: AI FASHION STYLIST
@@ -1035,7 +592,6 @@ async function recommendMusic(m, s) { return { success: true, recommendation: "M
 async function recommendSfx(s) { return { success: true, recommendation: "SFX..." }; }
 async function generateCaptionAndHashtags(p, pb, mb, k) { return { success: true, data: { caption: "Caption", hashtags: "#hash" } }; }
 async function removeBackground(i, p) { return segmentProduct(i, p); }
-async function generateTshirtPhotos(b, t) { return { success: true, images: [b] }; } // Simple echo for stability
 
 
 module.exports = {

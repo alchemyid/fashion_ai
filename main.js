@@ -33,7 +33,7 @@ if (!process.env.GEMINI_API_KEY) {
 }
 
 // Helper to track usage
-function trackUsage(isImage = false, isError = false) {
+function trackUsage(isImage = false, isError = false, count = 1) {
     const stats = store.get('stats');
     const now = new Date();
     const todayString = now.toDateString();
@@ -53,17 +53,16 @@ function trackUsage(isImage = false, isError = false) {
     }
 
     if (!isError) {
-        stats.totalRequests += 1;
-        stats.todayRequests += 1;
-        stats.currentMonthRequests += 1; 
+        stats.totalRequests += count;
+        stats.todayRequests += count;
+        stats.currentMonthRequests += count; 
         
         if (isImage) {
-            stats.totalImages += 1;
-            // Pastikan properti ini ada (untuk migrasi data lama)
-            stats.currentMonthImages = (stats.currentMonthImages || 0) + 1;
+            stats.totalImages += count;
+            stats.currentMonthImages = (stats.currentMonthImages || 0) + count;
         }
     } else {
-        stats.totalErrors += 1;
+        stats.totalErrors += count;
     }
 
     store.set('stats', stats);
@@ -193,10 +192,10 @@ function startAPIServer() {
             const result = await aiService.generateImage(prompt, sampleCount, isProductOnly, isConsistent);
             
             if (result.success) {
-                trackUsage(true, false); // Track Success as Image
+                trackUsage(true, false, result.imagesBase64.length);
                 res.json({ success: true, data: { imagesBase64: result.imagesBase64 } });
             } else {
-                trackUsage(false, true); // Track Error
+                trackUsage(false, true);
                 res.status(500).json({ success: false, error: result.error });
             }
         } catch (error) {
@@ -214,7 +213,7 @@ function startAPIServer() {
             const result = await aiService.generateByReference(referenceBase64, prompt, sampleCount);
             
             if (result.success) {
-                trackUsage(true, false); // Track Success as Image
+                trackUsage(true, false, result.imagesBase64.length);
                 res.json({ success: true, data: { imagesBase64: result.imagesBase64 } });
             } else {
                 trackUsage(false, true);
@@ -239,7 +238,7 @@ function startAPIServer() {
             const result = await aiService.segmentProduct(productBase64, segmentPrompt);
             
             if (result.success) {
-                trackUsage(true, false); // Segmentasi = Image Editing (Image)
+                trackUsage(true, false);
                 res.json({ success: true, data: { imageBase64: result.imageBase64 } });
             } else {
                 trackUsage(false, true);
@@ -262,7 +261,7 @@ function startAPIServer() {
             );
             
             if (result.success) {
-                trackUsage(true, false); // Image Generation
+                trackUsage(true, false, result.imagesBase64.length);
                 res.json({ success: true, data: { imagesBase64: result.imagesBase64, angleTitles: result.angleTitles } });
             } else {
                 trackUsage(false, true);
@@ -287,7 +286,7 @@ function startAPIServer() {
             const result = await aiService.generateVeoPrompt(productBase64, modelBase64, platform, duration, aiModel);
             
             if (result.success) {
-                trackUsage(false, false); // Text/Multimodal Request
+                trackUsage(false, false);
                 res.json({ success: true, data: { scriptData: result.scriptData } });
             } else {
                 trackUsage(false, true);
@@ -323,7 +322,7 @@ function startAPIServer() {
             const result = await aiService.generateAudioScript(productBase64, modelBase64, platform, duration, aiModel);
 
             if (result.success) {
-                trackUsage(false, false); // Text/Multimodal
+                trackUsage(false, false);
                 res.json({ success: true, data: { scriptData: result.scriptData } });
             } else {
                 trackUsage(false, true);
@@ -344,7 +343,7 @@ function startAPIServer() {
             const result = await aiService.generateVoiceover(script, voiceName);
             
             if (result.success) {
-                trackUsage(false, false); // TTS (dihitung setara text req murah di estimasi ini, atau bisa dibuat kategori sendiri jika ingin sangat detail)
+                trackUsage(false, false);
                 res.json({ success: true, data: { audioBase64: result.audioBase64, sampleRate: result.sampleRate } });
             } else {
                 trackUsage(false, true);
@@ -402,7 +401,7 @@ function startAPIServer() {
             const result = await aiService.generateCaptionAndHashtags(platform, productBase64, modelBase64, keywords);
 
             if (result.success) {
-                trackUsage(false, false); // Multimodal/Text
+                trackUsage(false, false);
                 res.json({ success: true, data: result.data });
             } else {
                 trackUsage(false, true);
@@ -422,7 +421,7 @@ function startAPIServer() {
             const result = await aiService.removeBackground(imageBase64, cleanPrompt);
 
             if (result.success) {
-                trackUsage(true, false); // Image Editing -> Image Cost
+                trackUsage(true, false);
                 res.json({ success: true, data: { imageBase64: result.imageBase64 } });
             } else {
                 trackUsage(false, true);
@@ -452,7 +451,7 @@ function startAPIServer() {
 
             if (result.success) {
                 console.log(">>> [API] Success! Generated outfit");
-                trackUsage(true, false); // Image Generation
+                trackUsage(true, false);
                 res.json({ success: true, data: { imageBase64: result.imageBase64, stylingAdvice: result.stylingAdvice } });
             } else {
                 console.error(">>> [API] Service error:", result.error);
@@ -483,54 +482,15 @@ function startAPIServer() {
     // Tshirt Creator
     apiApp.post('/api/generate-tshirt-photos', async (req, res) => {
         try {
-            const { base64Image, theme } = req.body;
-            const result = await aiService.generateTshirtPhotos(base64Image, theme);
-
-            if (result.success) {
-                const count = result.images.length;
-                
-                const stats = store.get('stats');
-                stats.totalRequests += count;
-                stats.todayRequests += count;
-                stats.currentMonthRequests += count;
-                
-                // Track as images
-                stats.totalImages += count;
-                stats.currentMonthImages = (stats.currentMonthImages || 0) + count;
-                
-                store.set('stats', stats);
-
-                res.json({ success: true, data: { images: result.images } });
-            } else {
-                trackUsage(false, true);
-                res.status(500).json({ success: false, error: result.error });
+            const { frontImage, backImage, theme } = req.body;
+            if (!frontImage || !theme) {
+                return res.status(400).json({ success: false, error: 'Front image and theme are required.' });
             }
-        } catch (error) {
-            trackUsage(false, true);
-            res.status(500).json({ success: false, error: error.message });
-        }
-    });
 
-    // Tshirt Creator
-    apiApp.post('/api/generate-tshirt-photos', async (req, res) => {
-        try {
-            const { base64Image, theme } = req.body;
-            const result = await aiService.generateTshirtPhotos(base64Image, theme);
+            const result = await aiService.generateTshirtPhotos(frontImage, backImage, theme);
 
             if (result.success) {
-                const count = result.images.length;
-                
-                const stats = store.get('stats');
-                stats.totalRequests += count;
-                stats.todayRequests += count;
-                stats.currentMonthRequests += count;
-                
-                // Track as images
-                stats.totalImages += count;
-                stats.currentMonthImages = (stats.currentMonthImages || 0) + count;
-                
-                store.set('stats', stats);
-
+                trackUsage(true, false, result.images.length);
                 res.json({ success: true, data: { images: result.images } });
             } else {
                 trackUsage(false, true);
@@ -551,8 +511,8 @@ function startAPIServer() {
 
 function createWindow(pageToLoad) {
     mainWindow = new BrowserWindow({
-        width: 1920,
-        height: 1080,
+        width: 1280,
+        height: 720,
         fullscreen: true,
         autoHideMenuBar: true,
         webPreferences: {

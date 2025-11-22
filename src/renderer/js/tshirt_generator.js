@@ -372,7 +372,7 @@ document.addEventListener('DOMContentLoaded', () => {
         link.click();
     });
 
-    // --- AI GENERATION (12 PHOTOS LOGIC) ---
+    // --- AI GENERATION (SINGLE CALL LOGIC) ---
     generateAiBtn.addEventListener('click', async () => {
         const theme = aiTheme.value;
 
@@ -386,81 +386,50 @@ document.addEventListener('DOMContentLoaded', () => {
         // Helper to capture view
         const captureView = async (viewName) => {
             switchView(viewName);
-            // Allow a micro-tick for canvas to repaint
-            await new Promise(r => setTimeout(r, 50));
+            await new Promise(r => setTimeout(r, 50)); // Allow canvas to repaint
             return canvas.toDataURL('image/jpeg', 0.9).split(',')[1];
         };
 
         try {
             // 1. Capture Front
             loadingText.textContent = "Capturing Front Design...";
-            const frontB64 = await captureView('front');
+            const frontImageB64 = await captureView('front');
 
-            // 2. Capture Back (if exists)
-            let backB64 = null;
-            // We consider back design exists if there is a back design image UPLOADED or a Specific Back Base
-            // User said: "jika user tidak mengupload untuk bagian belakang, kaos hasil generate photo hasil nya sudah benar seperti sekarang"
-            // So trigger only if back design is present.
+            // 2. Capture Back (if it exists)
+            let backImageB64 = null;
             if (state.backDesign.image || (state.baseBackImage && state.baseBackImage !== state.baseImage)) {
                 loadingText.textContent = "Capturing Back Design...";
-                backB64 = await captureView('back');
+                backImageB64 = await captureView('back');
             }
 
             // Restore view to front for user experience
             switchView('front');
 
-            let finalImages = [];
-
-            // 3. Request AI - Front
-            loadingText.textContent = "Generating Front Photos (1/2)...";
-            const frontRes = await window.electron.invoke('/api/generate-tshirt-photos', {
-                base64Image: frontB64,
+            // 3. Make a SINGLE API call
+            loadingText.textContent = "Sending designs to AI Photoshoot Director...";
+            const response = await window.electron.invoke('/api/generate-tshirt-photos', {
+                frontImage: frontImageB64,
+                backImage: backImageB64, // This will be null if no back design exists
                 theme
             });
-            if (frontRes.success) {
-                // Tag them as front
-                finalImages = finalImages.concat(frontRes.data.images.map(img => ({ data: img, type: 'Front View' })));
-            } else {
-                throw new Error("Front generation failed: " + frontRes.error);
+
+            if (!response.success) {
+                throw new Error(response.error || "Unknown AI error");
             }
 
-            // 4. Request AI - Back (if applicable)
-            if (backB64) {
-                loadingText.textContent = "Generating Back Photos (2/2)...";
-                const backRes = await window.electron.invoke('/api/generate-tshirt-photos', {
-                    base64Image: backB64,
-                    theme
-                });
-                if (backRes.success) {
-                    finalImages = finalImages.concat(backRes.data.images.map(img => ({ data: img, type: 'Back View' })));
-                }
-            }
-
-            // 5. Render Results
+            // 4. Render Results
             resultsArea.style.display = 'block';
+            const images = response.data.images;
+            const hasBack = !!backImageB64;
+            const frontImages = hasBack ? images.slice(0, 6) : images;
+            const backImages = hasBack ? images.slice(6) : [];
 
-            finalImages.forEach((item, idx) => {
-                const div = document.createElement('div');
-                div.className = 'result-item';
+            frontImages.forEach((imgData, idx) => {
+                renderResultItem(imgData, 'Front View', `front_${idx}`);
+            });
 
-                // Badge for View Type
-                const badge = document.createElement('div');
-                badge.className = 'result-badge';
-                badge.textContent = item.type;
-
-                const img = document.createElement('img');
-                img.src = `data:image/jpeg;base64,${item.data}`;
-
-                const btn = document.createElement('a');
-                btn.className = 'download-btn';
-                btn.href = img.src;
-                btn.download = `tshirt_ai_${idx}.jpg`;
-                btn.innerHTML = '<i class="fas fa-download"></i> Save';
-
-                div.appendChild(badge);
-                div.appendChild(img);
-                div.appendChild(btn);
-                resultGrid.appendChild(div);
+            backImages.forEach((imgData, idx) => {
+                renderResultItem(imgData, 'Back View', `back_${idx}`);
             });
 
         } catch (error) {
@@ -471,6 +440,29 @@ document.addEventListener('DOMContentLoaded', () => {
             generateAiBtn.disabled = false;
         }
     });
+
+    function renderResultItem(base64Data, type, filename) {
+        const div = document.createElement('div');
+        div.className = 'result-item';
+
+        const badge = document.createElement('div');
+        badge.className = 'result-badge';
+        badge.textContent = type;
+
+        const img = document.createElement('img');
+        img.src = `data:image/jpeg;base64,${base64Data}`;
+
+        const btn = document.createElement('a');
+        btn.className = 'download-btn';
+        btn.href = img.src;
+        btn.download = `tshirt_ai_${filename}.jpg`;
+        btn.innerHTML = '<i class="fas fa-download"></i> Save';
+
+        div.appendChild(badge);
+        div.appendChild(img);
+        div.appendChild(btn);
+        resultGrid.appendChild(div);
+    }
 
     // Start
     init();
