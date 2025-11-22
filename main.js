@@ -340,7 +340,7 @@ function startAPIServer() {
     });
 
     // Start Server
-    apiServer = apiApp.listen(5000, () => {
+    apiServer = apiApp.listen(8000, () => {
         console.log('API Server running on http://localhost:5000');
     });
 }

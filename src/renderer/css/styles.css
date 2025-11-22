@@ -1,3 +1,15 @@
+/* Button Row for Setting & Logout */
+.btn-row {
+    display: flex;
+    flex-direction: row;
+    gap: 16px;
+    margin-top: 12px;
+    margin-bottom: 12px;
+}
+.btn-row .btn-logout {
+    width: auto;
+    flex: 1;
+}
 :root {
     --color-primary: #667eea;
     --color-primary-dark: #5568d3;
