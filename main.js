@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const express = require('express');
 const cors = require('cors');
@@ -7,10 +7,12 @@ require('dotenv').config();
 let mainWindow;
 let apiServer;
 
+let initialPage = 'src/renderer/index.html';
+
 // Validate environment variables
 if (!process.env.GEMINI_API_KEY) {
-    console.error('GEMINI_API_KEY is not set in .env file');
-    app.quit();
+    console.error('GEMINI_API_KEY is not set in .env file, loading settings page.');
+    initialPage = 'src/renderer/setting.html';
 }
 
 function startAPIServer() {
@@ -24,6 +26,44 @@ function startAPIServer() {
     // Import Services
     const aiService = require('./src/backend/ai-service');
     const videoService = require('./src/backend/video-service');
+    const fs = require('fs');
+    const envPath = path.join(__dirname, '.env');
+
+    // Handler untuk membaca dan menulis file .env
+    ipcMain.handle('read-env', async () => {
+        try {
+            return fs.readFileSync(envPath, 'utf-8');
+        } catch (err) {
+            return '';
+        }
+    });
+
+    ipcMain.handle('write-env', async (event, content) => {
+        try {
+            fs.writeFileSync(envPath, content, 'utf-8');
+            return { success: true };
+        } catch (err) {
+            return { success: false, error: err.message };
+        }
+    });
+
+    ipcMain.handle('show-restart-dialog', async () => {
+        const dialogOpts = {
+            type: 'info',
+            buttons: ['Restart Sekarang', 'Nanti'],
+            title: 'Restart Aplikasi',
+            message: 'Konfigurasi telah disimpan.',
+            detail: 'Aplikasi perlu di-restart untuk menerapkan perubahan. Apakah Anda ingin me-restart sekarang?'
+        };
+        const { response } = await dialog.showMessageBox(mainWindow, dialogOpts);
+
+        if (response === 0) { // Corresponds to 'Restart Sekarang'
+            app.relaunch();
+            app.quit();
+        }
+
+        return { response };
+    });
 
     // Health check
     apiApp.get('/api/health', (req, res) => {
@@ -340,12 +380,13 @@ function startAPIServer() {
     });
 
     // Start Server
-    apiServer = apiApp.listen(8000, () => {
-        console.log('API Server running on http://localhost:5000');
+    const PORT = process.env.API_PORT || 8000;
+    apiServer = apiApp.listen(PORT, () => {
+        console.log(`API Server running on http://localhost:${PORT}`);
     });
 }
 
-function createWindow() {
+function createWindow(pageToLoad) {
     mainWindow = new BrowserWindow({
         width: 1920,
         height: 1080,
@@ -360,7 +401,7 @@ function createWindow() {
         backgroundColor: '#ffffff'
     });
 
-    mainWindow.loadFile('src/renderer/index.html');
+    mainWindow.loadFile(pageToLoad);
 
     if (process.env.NODE_ENV !== 'production') {
         // mainWindow.webContents.openDevTools({ mode: 'detach' });
@@ -373,11 +414,11 @@ function createWindow() {
 
 app.whenReady().then(() => {
     startAPIServer();
-    createWindow();
+    createWindow(initialPage);
 
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) {
-            createWindow();
+            createWindow(initialPage);
         }
     });
 });

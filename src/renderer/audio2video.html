@@ -574,7 +574,7 @@
         cleanVoiceoverScript = null;
 
         try {
-            const response = await fetch('http://localhost:5000/api/generate-audio-script', {
+            const response = await fetch(`${window.electronAPI?.backendServer || 'http://localhost:8000'}/api/generate-audio-script`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -633,7 +633,7 @@
         }
 
         try {
-            const response = await fetch('http://localhost:5000/api/generate-voiceover', {
+            const response = await fetch(`${window.electronAPI?.backendServer || 'http://localhost:8000'}/api/generate-voiceover`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ script: scriptToSpeak, voiceName: voice })
@@ -684,7 +684,7 @@
         recommendMusicBtn.disabled = true;
 
         try {
-            const response = await fetch('http://localhost:5000/api/recommend-music', {
+            const response = await fetch(`${window.electronAPI?.backendServer || 'http://localhost:8000'}/api/recommend-music`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ mood: mood, script: scriptContext })
@@ -723,7 +723,7 @@
         recommendSfxBtn.disabled = true;
 
         try {
-            const response = await fetch('http://localhost:5000/api/recommend-sfx', {
+            const response = await fetch(`${window.electronAPI?.backendServer || 'http://localhost:8000'}/api/recommend-sfx`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ script: scriptToAnalyze })

@@ -372,7 +372,7 @@
         promptInput.value = "";
 
         try {
-            const response = await fetch('http://localhost:5000/api/generate-video-prompt', {
+            const response = await fetch(`${window.electronAPI?.backendServer || 'http://localhost:8000'}/api/generate-video-prompt`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -423,7 +423,7 @@
         downloadVideoBtn.style.display = 'none';
 
         try {
-            const response = await fetch('http://localhost:5000/api/generate-video-from-image', {
+            const response = await fetch(`${window.electronAPI?.backendServer || 'http://localhost:8000'}/api/generate-video-from-image`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

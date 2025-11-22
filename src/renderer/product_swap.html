@@ -533,7 +533,7 @@
         generateButton.disabled = true;
 
         try {
-            const response = await fetch('http://localhost:5000/api/segment-product', {
+            const response = await fetch(`${window.electronAPI?.backendServer || 'http://localhost:8000'}/api/segment-product`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -592,7 +592,7 @@
                 modelReferenceBase64: modelReferenceBase64 // Akan null jika mode 'text'
             };
 
-            const response = await fetch('http://localhost:5000/api/generate-model-from-product', {
+            const response = await fetch(`${window.electronAPI?.backendServer || 'http://localhost:8000'}/api/generate-model-from-product`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)

@@ -234,7 +234,7 @@
             };
 
             // Panggil endpoint backend BARU
-            const response = await fetch('http://localhost:5000/api/generate-by-reference', {
+            const response = await fetch(`${window.electronAPI?.backendServer || 'http://localhost:8000'}/api/generate-by-reference`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)

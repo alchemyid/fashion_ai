@@ -289,7 +289,7 @@
         generateButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
 
         try {
-            const response = await fetch('http://localhost:5000/api/generate-by-command', {
+            const response = await fetch(`${window.electronAPI?.backendServer || 'http://localhost:8000'}/api/generate-by-command`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 // **PERUBAHAN**: Kirim kedua status toggle

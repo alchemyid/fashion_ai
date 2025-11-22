@@ -1,8 +1,20 @@
-const { contextBridge } = require('electron');
+const { contextBridge, ipcRenderer } = require('electron');
+
+const API_PORT = process.env.API_PORT || 8000;
+const API_BASE_URL = `http://localhost:${API_PORT}`;
 
 // Expose backend server configuration FIRST
+// Note: BACKEND_SERVER in .env would override the API_PORT for this specific value.
 contextBridge.exposeInMainWorld('electronAPI', {
-    backendServer: process.env.BACKEND_SERVER || 'http://127.0.0.1:8000'
+    backendServer: process.env.BACKEND_SERVER || API_BASE_URL,
+    apiBaseUrl: API_BASE_URL
+});
+
+// API untuk .env
+contextBridge.exposeInMainWorld('api', {
+    readEnv: () => ipcRenderer.invoke('read-env'),
+    writeEnv: (content) => ipcRenderer.invoke('write-env', content),
+    showRestartDialog: () => ipcRenderer.invoke('show-restart-dialog')
 });
 
 // Expose a secure API for the renderer process
@@ -16,7 +28,7 @@ contextBridge.exposeInMainWorld('electron', {
 
     invoke: async (endpoint, body) => {
         try {
-            const response = await fetch(`http://localhost:5000${endpoint}`, {
+            const response = await fetch(`${API_BASE_URL}${endpoint}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)

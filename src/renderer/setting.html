@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setting - Fashion AI Generator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="dashboard-layout">
+    <!-- Navbar -->
+    <div id="navbar-container"></div>
+    <main class="content">
+        <div class="content-header">
+            <h1><i class="fas fa-cog"></i> Setting</h1>
+            <p>Edit konfigurasi file <b>.env</b> aplikasi Anda.</p>
+        </div>
+        <div class="card" style="background: #fff; max-width: 900px; padding: 32px;">
+            <form id="envForm">
+                <label for="envTextarea" style="font-weight: 600; margin-bottom: 8px; display: block; color: #2d3748;">.env Content</label>
+                <textarea id="envTextarea" rows="16" style="width: 100%; border-radius: 8px; border: 1px solid #e2e8f0; padding: 16px; font-family: monospace; font-size: 1rem; background: #f5f7fa; color: #2d3748; margin-bottom: 24px;"></textarea>
+                <button type="submit" class="btn-execute" style="width: 100%; font-size: 1.1rem; padding: 0.9rem; justify-content: center;">
+                    <i class="fas fa-save"></i> Simpan Perubahan
+                </button>
+                <div id="statusMsg" style="margin-top: 16px; color: var(--color-success); display: none;"></div>
+            </form>
+        </div>
+    </main>
+</div>
+<script>
+    // Load navbar
+    fetch('components/navbar.html')
+        .then(res => res.text())
+        .then(html => {
+            document.getElementById('navbar-container').innerHTML = html;
+        });
+</script>
+<script src="js/setting.js"></script>
+</body>
+</html>
