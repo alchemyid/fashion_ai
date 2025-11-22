@@ -137,7 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
         for (const scenario of scenariosToRun) {
             updateScenarioStatus(scenario.id, 'loading');
             try {
-                const result = await window.electron.invoke('/api/generate-product-by-command', {
+                const result = await window.electron.invoke('/api/generate-product-fashion', {
                     masterImage: product.baseImage,
                     productDescription: product.description,
                     shotType: scenario.shotType,

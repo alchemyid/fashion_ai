@@ -131,7 +131,7 @@ function startAPIServer() {
     });
 
     // UPDATED Endpoint for the Photoshoot feature
-    apiApp.post('/api/generate-product-by-command', async (req, res) => {
+    apiApp.post('/api/generate-product-fashion', async (req, res) => {
         try {
             const { masterImage, productDescription, shotType, lightingStyle, sampleCount } = req.body;
             if (!masterImage || !productDescription || !shotType || !lightingStyle) {
