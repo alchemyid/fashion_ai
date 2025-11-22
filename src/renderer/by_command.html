@@ -3,244 +3,115 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>By Command - Fashion AI Generator</title>
+    <title>Generate Product by Command - Fashion AI</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/styles.css">
     <style>
-        /* Tambahkan style untuk error message */
-        .error-message {
-            display: none;
-            padding: 1rem;
-            background: #fef2f2;
-            color: #b91c1c;
-            border: 1px solid #f87171;
-            border-radius: var(--border-radius);
-            margin-top: 1.5rem;
-            font-size: 0.9rem;
-        }
-
-        /* Style untuk Pemilih Jumlah Gambar */
-        .count-selector {
-            display: flex;
-            gap: 0.5rem;
-            margin-top: 0.5rem;
-        }
-        .count-btn {
-            background-color: #f5f7fa;
-            border: 2px solid var(--color-border);
-            color: var(--color-text-light);
-            font-weight: 600;
-            width: 40px;
-            height: 40px;
-            border-radius: var(--border-radius);
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .count-btn:hover {
-            border-color: var(--color-primary);
-            color: var(--color-primary);
-        }
-        .count-btn.active {
-            background-color: var(--color-primary);
-            border-color: var(--color-primary);
-            color: white;
-            box-shadow: 0 4px 6px rgba(102, 126, 234, 0.2);
-        }
-
-        /* Style untuk Thumbnail Grid */
-        .thumbnail-grid {
+        .error-message { display: none; padding: 1rem; background: #fef2f2; color: #b91c1c; border: 1px solid #f87171; border-radius: var(--border-radius); margin-top: 1.5rem; font-size: 0.9rem; }
+        .thumbnail-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1.5rem; margin-top: 1rem; padding: 1rem; background: #f5f7fa; border-radius: 8px; }
+        .thumbnail-item { position: relative; border-radius: var(--border-radius); overflow: hidden; box-shadow: var(--shadow); background: #e2e8f0; aspect-ratio: 1 / 1; }
+        .thumbnail-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .download-btn { position: absolute; bottom: 8px; right: 8px; background: rgba(0, 0, 0, 0.6); color: white; border: none; border-radius: 50px; padding: 0.35rem 0.75rem; font-size: 0.8rem; font-weight: 500; cursor: pointer; text-decoration: none; opacity: 0; transition: opacity 0.2s; }
+        .thumbnail-item:hover .download-btn { opacity: 1; }
+        .download-btn i { margin-right: 0.25rem; }
+        
+        /* Grid System from ai_stylist.html */
+        .control-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            grid-template-columns: 1fr 1fr 1fr; /* Three columns */
             gap: 1.5rem;
-            margin-top: 1rem;
-            padding: 1rem;
-            background: #f5f7fa;
-            border-radius: 8px;
+            align-items: end; /* Align items to the bottom */
         }
-        .thumbnail-item {
-            position: relative;
-            border-radius: var(--border-radius);
-            overflow: hidden;
-            box-shadow: var(--shadow);
-            background: #e2e8f0;
-            aspect-ratio: 1 / 1;
+        
+        /* Responsive adjustments */
+        @media (max-width: 992px) {
+            .control-grid {
+                grid-template-columns: 1fr 1fr; /* Two columns on medium screens */
+            }
         }
-        .thumbnail-item img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-        }
-        .download-btn {
-            position: absolute;
-            bottom: 8px;
-            right: 8px;
-            background: rgba(0, 0, 0, 0.6);
-            color: white;
-            border: none;
-            border-radius: 50px;
-            padding: 0.35rem 0.75rem;
-            font-size: 0.8rem;
-            font-weight: 500;
-            cursor: pointer;
-            text-decoration: none;
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
-        .thumbnail-item:hover .download-btn {
-            opacity: 1;
-        }
-        .download-btn i {
-            margin-right: 0.25rem;
+        @media (max-width: 768px) {
+            .control-grid {
+                grid-template-columns: 1fr; /* One column on small screens */
+                gap: 1rem;
+            }
         }
 
-        /* Style untuk Toggle Switch */
-        .toggle-switch-container {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-        .toggle-switch {
-            position: relative;
-            display: inline-block;
-            width: 50px;
-            height: 28px;
-        }
-        .toggle-switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-        .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: #ccc;
-            transition: .4s;
-            border-radius: 34px;
-        }
-        .slider:before {
-            position: absolute;
-            content: "";
-            height: 20px;
-            width: 20px;
-            left: 4px;
-            bottom: 4px;
-            background-color: white;
-            transition: .4s;
-            border-radius: 50%;
-        }
-        input:checked + .slider {
-            background-color: var(--color-primary);
-        }
-        input:checked + .slider:before {
-            transform: translateX(22px);
-        }
-        .toggle-switch-container label {
-            font-weight: 600;
-            color: var(--color-text);
-            margin-bottom: 0; /* Override default margin */
+        /* Consistent styling for select and input from ai_stylist.html */
+        .form-group select, .form-group input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            background: white;
+            font-size: 0.9rem; /* Ensure consistent font size */
         }
     </style>
 </head>
 <body>
 <div class="dashboard-layout">
-    <!-- Navbar will be loaded here dynamically -->
-
     <main class="content">
         <div class="content-header">
-            <h1><i class="fas fa-terminal"></i> Generate by Command</h1>
-            <p>Create stunning AI-generated content using text prompts</p>
+            <h1><i class="fas fa-magic"></i> Generate Product by Command</h1>
+            <p>Create professional, consistent product photos using detailed commands.</p>
         </div>
 
         <div class="form-card">
             <form id="commandForm">
-                <div class="form-group">
-                    <label>Example Command</label>
-                    <p class="helper-text">Use this as a reference for crafting your prompt</p>
-
-                    <div class="example-command">
-                        <strong>Example ID:</strong>
-                        "Sebuah potret photorealistic seorang wanita muda yang elegan mengenakan pakaian full-body modis,
-                        berdiri di latar perkotaan dengan pencahayaan alami.
-                        Dia mengenakan ansambel modern dan penuh gaya yang menampilkan blazer berpotongan rapi (tailored blazer),
-                        celana panjang berpinggang tinggi, dan aksesori desainer.
-                        Fotografi fesyen profesional, resolusi tinggi, kualitas 8K,
-                        Hapus semua teks, logo, caption, headline, masthead, barcode, atau watermark majalah. Hanya objek saja"
+                <div class="control-grid">
+                    <!-- Shot Type -->
+                    <div class="form-group">
+                        <label for="shotType" class="font-bold block mb-2">Shot Type (Angle)</label>
+                        <select id="shotType">
+                            <option value="Eye-Level View" selected>Eye-Level View (Standard)</option>
+                            <option value="Flat Lay">Flat Lay (Top-Down)</option>
+                            <option value="Three-Quarter View">Three-Quarter View</option>
+                            <option value="Detail Macro Shot">Detail / Macro Shot</option>
+                            <option value="High Angle View">High Angle View</option>
+                        </select>
+                    </div>
+                    <!-- Lighting Style -->
+                    <div class="form-group">
+                        <label for="lightingStyle" class="font-bold block mb-2">Lighting Style</label>
+                        <select id="lightingStyle">
+                            <option value="Soft Studio Light" selected>Soft Studio Light</option>
+                            <option value="Hard Direct Light">Hard Direct Light (Dramatic)</option>
+                            <option value="Backlit / Rim Light">Backlit / Rim Light</option>
+                            <option value="Natural Daylight">Natural Daylight</option>
+                            <option value="Cinematic Lighting">Cinematic Lighting</option>
+                        </select>
+                    </div>
+                    <!-- Number of Images -->
+                    <div class="form-group">
+                        <label for="sampleCount" class="font-bold block mb-2">Number of Images</label>
+                        <input type="number" id="sampleCount" value="4" min="1" max="8">
                     </div>
                 </div>
 
-                <!-- OPSI JUMLAH GAMBAR (DIPERBAIKI) -->
-                <div class="form-group">
-                    <label>Jumlah Gambar</label>
-                    <p class="helper-text">Pilih berapa banyak gambar yang ingin Anda buat (1-4)</p>
-                    <div class="count-selector" id="countSelector">
-                        <button type="button" class="count-btn active" data-count="1">1</button>
-                        <button type="button" class="count-btn" data-count="2">2</button>
-                        <button type="button" class="count-btn" data-count="3">3</button>
-                        <button type="button" class="count-btn" data-count="4">4</button>
-                        <!-- Tombol 5 dan 6 dihapus untuk memperbaiki Error 400 -->
-                    </div>
-                </div>
-
-                <!-- **PERUBAHAN**: Toggle 1 (Model) -->
-                <div class="form-group">
-                    <div class="toggle-switch-container">
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="productOnlyToggle" checked>
-                            <span class="slider"></span>
-                        </label>
-                        <label for="productOnlyToggle">Product Shot Only (Tanpa Model)</label>
-                    </div>
-                    <p class="helper-text" style="margin-top: 0.5rem;">
-                        'On': Fokus pada produk saja (latar putih). 'Off': Izinkan AI menambahkan model & latar.
-                    </p>
-                </div>
-
-                <!-- **PERUBAHAN**: Toggle 2 (Konsistensi) -->
-                <div class="form-group">
-                    <div class="toggle-switch-container">
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="consistencyToggle" checked>
-                            <span class="slider"></span>
-                        </label>
-                        <label for="consistencyToggle">Hasil yang Konsisten</label>
-                    </div>
-                    <p class="helper-text" style="margin-top: 0.5rem;">
-                        (Jika > 1 gambar) 'On': Paksa AI fokus pada satu ide produk. 'Off': Izinkan variasi desain.
-                    </p>
-                </div>
-
-                <div class="form-group">
-                    <label for="prompt">Your Command Prompt</label>
-                    <p class="helper-text">Describe what you want to generate in detail</p>
-                    <textarea id="prompt" name="prompt" placeholder="Enter your detailed prompt here..." required></textarea>
+                <div class="form-group" style="margin-top: 1.5rem;">
+                    <label for="prompt" class="font-bold">Product Description Prompt</label>
+                    <p class="helper-text">Describe the product you want to generate in detail.</p>
+                    <textarea id="prompt" name="prompt" placeholder="e.g., a stylish leather handbag, brown, with gold buckle" required></textarea>
                 </div>
 
                 <button type="submit" class="btn-execute" id="generateButton">
                     <i class="fas fa-magic"></i>
-                    Execute Generation
+                    Generate Product Images
                 </button>
             </form>
 
             <div id="loading" style="display:none;">
-                <p><i class="fas fa-spinner fa-spin"></i> Generating... Please wait. (Proses ini bisa memakan waktu 15-30 detik)</p>
+                <p><i class="fas fa-spinner fa-spin"></i> Generating... This may take a moment.</p>
             </div>
 
-            <!-- Pesan Error Non-Alert -->
             <div id="errorMessage" class="error-message"></div>
 
             <div id="result" style="display:none;">
-                <h3>Generated Result:</h3>
-                <!-- Diubah menjadi Thumbnail Grid -->
+                <h3>Generated Results:</h3>
                 <div id="resultDisplay" class="thumbnail-grid">
-                    <!-- Hasil gambar akan di-generate di sini oleh JS -->
+                    <!-- Generated images will appear here -->
                 </div>
             </div>
         </div>
@@ -248,102 +119,9 @@
 </div>
 
 <script src="js/navbar.js"></script>
+<script src="js/by_command.js"></script>
 <script>
-    // Load navbar with active menu
     loadNavbar('by_command');
-
-    let selectedCount = 1; // Default jumlah gambar
-
-    // Handler untuk tombol jumlah gambar
-    const countSelector = document.getElementById('countSelector');
-    countSelector.addEventListener('click', (e) => {
-        if (e.target.classList.contains('count-btn')) {
-            countSelector.querySelectorAll('.count-btn').forEach(btn => btn.classList.remove('active'));
-            e.target.classList.add('active');
-            selectedCount = parseInt(e.target.dataset.count, 10);
-        }
-    });
-
-    // Form submission handler
-    document.getElementById('commandForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-
-        const prompt = document.getElementById('prompt').value;
-        // **PERUBAHAN**: Menggunakan ID toggle yang baru
-        const isProductOnly = document.getElementById('productOnlyToggle').checked;
-        const isConsistent = document.getElementById('consistencyToggle').checked; // **BARU**
-
-        const loading = document.getElementById('loading');
-        const result = document.getElementById('result');
-        const resultDisplay = document.getElementById('resultDisplay');
-        const errorMessage = document.getElementById('errorMessage');
-        const generateButton = document.getElementById('generateButton');
-
-        // Reset UI
-        loading.style.display = 'block';
-        result.style.display = 'none';
-        errorMessage.style.display = 'none';
-        errorMessage.textContent = '';
-        resultDisplay.innerHTML = '';
-        generateButton.disabled = true;
-        generateButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
-
-        try {
-            const response = await fetch(`${window.electronAPI?.backendServer || 'http://localhost:8000'}/api/generate-by-command`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                // **PERUBAHAN**: Kirim kedua status toggle
-                body: JSON.stringify({
-                    prompt,
-                    sampleCount: selectedCount,
-                    isProductOnly: isProductOnly,
-                    isConsistent: isConsistent
-                })
-            });
-
-            const data = await response.json();
-
-            if (data.success && data.data.imagesBase64 && Array.isArray(data.data.imagesBase64)) {
-
-                if(data.data.imagesBase64.length === 0) {
-                    throw new Error("AI berhasil merespons, namun tidak ada gambar yang dikembalikan. Coba prompt lain.");
-                }
-
-                data.data.imagesBase64.forEach((base64String, index) => {
-                    const dataUrl = 'data:image/png;base64,' + base64String;
-
-                    const item = document.createElement('div');
-                    item.className = 'thumbnail-item';
-
-                    const img = document.createElement('img');
-                    img.src = dataUrl;
-                    img.alt = `${prompt.substring(0, 20)}... (${index + 1})`;
-
-                    const downloadBtn = document.createElement('a');
-                    downloadBtn.href = dataUrl;
-                    downloadBtn.download = `fashion-ai-${Date.now()}-${index + 1}.png`;
-                    downloadBtn.className = 'download-btn';
-                    downloadBtn.innerHTML = '<i class="fas fa-download"></i>';
-
-                    item.appendChild(img);
-                    item.appendChild(downloadBtn);
-                    resultDisplay.appendChild(item);
-                });
-
-                result.style.display = 'block';
-            } else {
-                errorMessage.textContent = 'Error: ' + (data.error || 'Respon API tidak valid.');
-                errorMessage.style.display = 'block';
-            }
-        } catch (error) {
-            errorMessage.textContent = 'Gagal terhubung ke server: ' + error.message;
-            errorMessage.style.display = 'block';
-        } finally {
-            loading.style.display = 'none';
-            generateButton.disabled = false;
-            generateButton.innerHTML = '<i class="fas fa-magic"></i> Execute Generation';
-        }
-    });
 </script>
 </body>
 </html>

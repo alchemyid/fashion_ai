@@ -1,83 +1,68 @@
-// Check login
-if (!localStorage.getItem('logged_in')) {
-    window.location.href = 'index.html';
-}
+document.addEventListener('DOMContentLoaded', () => {
+    loadNavbar('by_command');
 
-document.getElementById('app-container').innerHTML = `
-    <div class="dashboard-layout">
-        <aside class="sidebar">
-            <h2>AI Generator</h2>
-            <nav>
-                <a href="dashboard.html"><i class="fas fa-home"></i> Dashboard</a>
-                <a href="by_command.html" class="active"><i class="fas fa-terminal"></i> By Command</a>
-                <a href="#" onclick="logout()"><i class="fas fa-sign-out-alt"></i> Logout</a>
-            </nav>
-        </aside>
-        
-        <main class="content">
-            <h1><i class="fas fa-terminal"></i> Generate Image by Command</h1>
-            
-            <div class="form-card">
-                <form id="commandForm">
-                    <div class="form-group">
-                        <label>Example Command</label>
-                        <div class="example-command">
-                            <strong>Example:</strong>
-                            "A photorealistic portrait of an elegant young woman wearing a fashionable full-body outfit..."
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="prompt">Your Command Prompt</label>
-                        <textarea id="prompt" required placeholder="Enter your detailed prompt..."></textarea>
-                    </div>
-                    
-                    <button type="submit" class="btn-execute">
-                        <i class="fas fa-magic"></i> Execute Generation
-                    </button>
-                </form>
-                
-                <div id="result" style="display:none;">
-                    <h3>Generated Image:</h3>
-                    <img id="generatedImage" style="max-width: 100%; border-radius: 8px;">
-                </div>
-                
-                <div id="loading" style="display:none;">
-                    <p>Generating image... Please wait.</p>
-                </div>
-            </div>
-        </main>
-    </div>
-`;
-
-document.getElementById('commandForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    const prompt = document.getElementById('prompt').value;
+    const commandForm = document.getElementById('commandForm');
+    const generateButton = document.getElementById('generateButton');
     const loading = document.getElementById('loading');
-    const result = document.getElementById('result');
+    const resultContainer = document.getElementById('result');
+    const resultDisplay = document.getElementById('resultDisplay');
+    const errorMessage = document.getElementById('errorMessage');
 
-    loading.style.display = 'block';
-    result.style.display = 'none';
+    commandForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
 
-    try {
-        const response = await window.api.generateByCommand(prompt);
+        const shotType = document.getElementById('shotType').value;
+        const lightingStyle = document.getElementById('lightingStyle').value;
+        const sampleCount = parseInt(document.getElementById('sampleCount').value, 10);
+        const prompt = document.getElementById('prompt').value;
 
-        if (response.success) {
-            const img = document.getElementById('generatedImage');
-            img.src = `data:${response.data.mimeType};base64,${response.data.imageUrl}`;
-            result.style.display = 'block';
-        } else {
-            alert('Error: ' + response.error);
+        // UI Reset
+        loading.style.display = 'block';
+        resultContainer.style.display = 'none';
+        errorMessage.style.display = 'none';
+        resultDisplay.innerHTML = '';
+        generateButton.disabled = true;
+        generateButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+
+        try {
+            const response = await window.electron.invoke('/api/generate-product-by-command', {
+                prompt,
+                shotType,
+                lightingStyle,
+                sampleCount
+            });
+
+            if (response.success && response.data.imagesBase64 && response.data.imagesBase64.length > 0) {
+                response.data.imagesBase64.forEach((base64String, index) => {
+                    const dataUrl = `data:image/png;base64,${base64String}`;
+                    const item = document.createElement('div');
+                    item.className = 'thumbnail-item';
+
+                    const img = document.createElement('img');
+                    img.src = dataUrl;
+                    img.alt = `Generated Product ${index + 1}`;
+
+                    const downloadBtn = document.createElement('a');
+                    downloadBtn.href = dataUrl;
+                    downloadBtn.download = `product-ai-${Date.now()}-${index + 1}.png`;
+                    downloadBtn.className = 'download-btn';
+                    downloadBtn.innerHTML = '<i class="fas fa-download"></i> Save';
+
+                    item.appendChild(img);
+                    item.appendChild(downloadBtn);
+                    resultDisplay.appendChild(item);
+                });
+                resultContainer.style.display = 'block';
+            } else {
+                throw new Error(response.error || 'No images were generated. Please try a different prompt.');
+            }
+        } catch (error) {
+            errorMessage.textContent = `Error: ${error.message}`;
+            errorMessage.style.display = 'block';
+        } finally {
+            loading.style.display = 'none';
+            generateButton.disabled = false;
+            generateButton.innerHTML = '<i class="fas fa-magic"></i> Generate Product Images';
         }
-    } catch (error) {
-        alert('Failed to generate image: ' + error.message);
-    } finally {
-        loading.style.display = 'none';
-    }
+    });
 });
-
-function logout() {
-    localStorage.removeItem('logged_in');
-    window.location.href = 'index.html';
-}

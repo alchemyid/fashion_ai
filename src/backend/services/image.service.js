@@ -1,15 +1,153 @@
 // src/backend/services/image.service.js
 const { API_KEY, IMAGEN_API_URL, GEMINI_IMAGE_EDIT_API_URL, GEMINI_TEXT_API_URL, fetchWithRetry, cleanJsonResponse } = require('./common.service');
 
-const SHOT_TYPES = [
-    { name: "Full Body Shot", desc: "Foto seluruh badan, menampilkan produk dari kepala hingga kaki." },
-    { name: "Close-Up Shot", desc: "Fokus ekstrem ke detail produk (jahitan, tekstur, dll)." },
-    { name: "Walking / Motion Shot", desc: "Model dalam pose berjalan, memberi kesan dinamis." },
-    { name: "High Angle Shot", desc: "Foto dari sudut tinggi, melihat ke bawah ke model." },
-    { name: "Side Profile Shot", desc: "Foto dari samping, menonjolkan siluet produk." },
-    { name: "Seated Shot", desc: "Model dalam pose duduk, menampilkan produk saat dipakai santai." }
-];
+/**
+ * STEP 1: Helper Function untuk "Prompt Expansion"
+ * Menggunakan GEMINI_TEXT_API_URL (Flash) untuk mengubah input pendek jadi deskripsi detail.
+ */
+async function expandPromptWithGemini(userInput) {
+    console.log(`[Prompt Expander] Expanding user input: "${userInput}"...`);
 
+    const instruction = `
+        You are a professional Product Design Director. 
+        Your task is to convert a simple product name into a ONE specific, highly detailed visual description to ensure consistency in image generation.
+        
+        Rules:
+        1. Define specific materials (e.g., "matte leather", "brushed steel").
+        2. Define specific color palette (e.g., "obsidian black with neon green accents").
+        3. Define specific shape/features (e.g., "T-strap", "chunky heel", "open toe").
+        4. Do NOT describe the background or lighting (only the object).
+        5. Keep it under 40 words.
+
+        Input: "${userInput}"
+        Output:
+    `;
+    try {
+        // PERBAIKAN UTAMA DISINI:
+        // Gunakan GEMINI_TEXT_API_URL, bukan IMAGEN_API_URL.
+        const response = await fetchWithRetry(GEMINI_TEXT_API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: instruction }] }]
+            })
+        });
+
+        const data = await response.json();
+
+        // Parsing response Gemini Text
+        if (data.candidates && data.candidates[0].content) {
+            const detailedPrompt = data.candidates[0].content.parts[0].text.trim();
+            console.log(`[Prompt Expander] Result: "${detailedPrompt}"`);
+            return detailedPrompt;
+        } else {
+            console.warn("[Prompt Expander] Warning: No text returned. Using original input.");
+            return userInput;
+        }
+    } catch (error) {
+        console.warn("[Prompt Expander] Failed (Network/API Error). Using original input.", error.message);
+        return userInput;
+    }
+}
+
+/**
+ * STEP 2: Main Generator Function
+ */
+async function generateProductByCommand({ prompt, shotType, lightingStyle, sampleCount }) {
+    if (!API_KEY) {
+        return { success: false, error: "API Key tidak ditemukan." };
+    }
+
+    // 1. Jalankan Prompt Expansion (Text API)
+    // Ini akan menghasilkan deskripsi produk yang konsisten (warna, bahan, bentuk)
+    const detailedObjectDescription = await expandPromptWithGemini(prompt);
+
+    const totalImages = Math.max(1, Math.min(parseInt(sampleCount, 10) || 1, 8));
+    const MAX_PER_REQUEST = 4;
+
+    // 2. Construct Prompt untuk Imagen
+    const finalPrompt = `
+        professional studio product photography of ${detailedObjectDescription}.
+        SHOT TYPE: ${shotType}, isolated product, centered composition.
+        LIGHTING: ${lightingStyle}, soft studio lighting, 8k resolution, sharp focus.
+        BACKGROUND: Pure white background (Hex #FFFFFF), clean commercial look.
+        No humans, no models, product only.
+    `.trim().replace(/\s+/g, ' ');
+
+    const negative_prompt =
+        "human, people, man, woman, model, hands, holding, feet, legs, " +
+        "outdoors, nature, trees, rocks, mountain, grass, dirt, sky, clouds, " +
+        "blurry, distorted, low quality, watermark, text, logo, signature, " +
+        "shadows on wall, complex background, colored background, grey background, dark background";
+
+    const apiCalls = [];
+    let remainingImages = totalImages;
+
+    while (remainingImages > 0) {
+        const currentBatchSize = Math.min(remainingImages, MAX_PER_REQUEST);
+
+        // Payload untuk IMAGEN (Image API)
+        const payload = {
+            instances: [{ prompt: finalPrompt, negative_prompt }],
+            parameters: {
+                sampleCount: currentBatchSize,
+                aspectRatio: "1:1",
+                outputMimeType: "image/png"
+                // Seed dihapus karena Imagen 4.0 public API belum support
+            }
+        };
+
+        console.log(`[Product Generator] Generating batch of ${currentBatchSize} images...`);
+
+        // PERBAIKAN: Pastikan loop ini menggunakan IMAGEN_API_URL
+        apiCalls.push(fetchWithRetry(IMAGEN_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        }));
+
+        remainingImages -= currentBatchSize;
+    }
+
+    try {
+        const results = await Promise.allSettled(apiCalls);
+        const allImages = [];
+        let errors = [];
+
+        results.forEach(res => {
+            if (res.status === 'fulfilled') {
+                // Parsing response Imagen
+                if (res.value.predictions) {
+                    const predictions = res.value.predictions;
+                    const imagesFromBatch = predictions.map(pred => pred.bytesBase64Encoded);
+                    allImages.push(...imagesFromBatch);
+                } else if (res.value.error) {
+                    errors.push(`API Error: ${JSON.stringify(res.value.error)}`);
+                } else {
+                    errors.push("Unknown response structure.");
+                }
+            } else {
+                errors.push(res.reason?.message || "Network error");
+            }
+        });
+
+        if (allImages.length === 0) {
+            throw new Error(`All batches failed. Details: ${errors.join(" | ")}`);
+        }
+
+        console.log(`[Product Generator] Success! Generated ${allImages.length} images.`);
+
+        return {
+            success: true,
+            imagesBase64: allImages,
+            usedPrompt: detailedObjectDescription // Berguna untuk debugging
+        };
+
+    } catch (error) {
+        console.error('AI Product Generation Error:', error);
+        return { success: false, error: error.message };
+    }
+}
 async function generateImage(prompt, sampleCount = 1, isProductOnly = true, isConsistent = true) {
     if (!API_KEY) {
         return { success: false, error: "API Key tidak ditemukan. Pastikan GEMINI_API_KEY diatur di .env" };
@@ -369,7 +507,7 @@ async function generateStylistOutfit(productBase64, styleName, gender) {
         if (!rawText) throw new Error("Gagal menganalisis produk (No Text).");
 
         rawText = cleanJsonResponse(rawText);
-        
+
         let analysis;
         try {
             analysis = JSON.parse(rawText);
@@ -401,7 +539,7 @@ async function generateStylistOutfit(productBase64, styleName, gender) {
         });
 
         const imagePart = imageRes.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
-        
+
         if (imagePart?.inlineData?.data) {
             return {
                 success: true,
@@ -418,7 +556,10 @@ async function generateStylistOutfit(productBase64, styleName, gender) {
     }
 }
 
+
 module.exports = {
+    expandPromptWithGemini,
+    generateProductByCommand, // Export the new function
     generateImage,
     generateByReference,
     segmentProduct,
