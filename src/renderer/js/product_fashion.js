@@ -29,10 +29,49 @@ document.addEventListener('DOMContentLoaded', () => {
         // --- Digital & Render Styles ---
         "3D Render, Octane render, isometric, smooth textures",
         "Low Poly, geometric shapes, abstract, minimalist",
-        "Oil Painting, textured brushstrokes, classic art style"
-    ];
-    const DEFAULT_ANGLES = ["Front View - Eye Level, perfectly centered", "3/4 Angle - Isometric view", "Top-Down Flat Lay", "Low Angle Hero Shot", "Close-up Macro", "Side Profile"];
+        "Oil Painting, textured brushstrokes, classic art style",
 
+        // --- MARKETPLACE UTAMA (Wajib untuk Katalog) ---
+        "E-Commerce Clean: Pure white background, studio lighting, hyper-realistic, 4k",
+        "Minimalist Catalog: Light grey background, soft shadow, high fidelity",
+
+        // --- SOCIAL MEDIA & LIFESTYLE (Untuk Iklan/Instagram) ---
+        "Lifestyle Context: Product in use, cozy home environment, shallow depth of field",
+        "Luxury Editorial: Marble texture background, elegant props, golden accent lighting",
+        "Nature/Organic: Wooden table surface, natural sunlight, leaves shadow, fresh vibe",
+        "Urban/Streetwear: Concrete texture, outdoor city daylight, trendy look",
+        "Tech/Modern: Sleek dark background, blue rim light, futuristic surface",
+
+        // --- KHUSUS MAKANAN (Jika ada) ---
+        "Gourmet Food: Fresh ingredients background, appetizing, warm lighting, steam effect"
+    ];
+    const DEFAULT_ANGLES = [
+        "Front View - Eye Level, perfectly centered, symmetrical balance",
+        "Side Profile, sharp silhouette, neutral background",
+        "3/4 Angle, depth perception, standard portrait composition",
+        "Over-the-Shoulder, narrative perspective, depth of field",
+        // --- Product & Layout ---
+        "Top-Down Flat Lay, knolling style, organized composition",
+        "Isometric View, 3D architectural style, orthographic projection",
+        "Product Reveal Angle, slightly elevated, showcasing depth",
+        // --- Dramatic & Cinematic ---
+        "Low Angle Hero Shot, looking up, imposing, dominant presence",
+        "High Angle, looking down, vulnerability, wide overview",
+        "Dutch Angle, tilted camera, dynamic motion, tension",
+        "Worm's Eye View, ground level, extreme perspective, blurred foreground",
+        // --- Scale & Immersion ---
+        "Close-up Macro, extreme detail, iris focus, bokeh",
+        "Wide Angle, panoramic, environmental context, 16mm lens",
+        "First-Person POV, immersive, handheld camera feel, seeing through eyes",
+        "Aerial Drone View, bird's eye, high altitude, epic scale",
+
+        "Front View (Hero Shot): Eye-level, showing the main face of the product clearly",
+        "Isometric (3D View): Showing top, front, and side simultaneously for dimension",
+        "45-Degree Down: The standard 'on the table' looking down perspective",
+        "Top-Down Flat Lay: Organized arrangement (knolling), great for Instagram",
+        "Close-up Macro: Focusing on fabric texture/material quality/logo details",
+        "Low Angle: Making the product look premium and towering (good for bottles/sneakers)"
+    ];
     const artisticStyleSelect = document.getElementById('artisticStyle');
     const angleSelect = document.getElementById('angleSelect');
     const lightingStyleSelect = document.getElementById('lightingStyle');
@@ -54,8 +93,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function init() {
         STYLE_PRESETS.forEach(style => artisticStyleSelect.add(new Option(style, style)));
-        DEFAULT_ANGLES.forEach(angle => angleSelect.add(new Option(angle.split('-')[0].trim(), angle)));
-
+        // DEFAULT_ANGLES.forEach(angle => angleSelect.add(new Option(angle.split('-')[0].trim(), angle)));
+        DEFAULT_ANGLES.forEach(angle => angleSelect.add(new Option(angle, angle)));
         document.getElementById('productName').addEventListener('input', e => product.name = e.target.value);
         document.getElementById('productDesc').addEventListener('input', e => product.description = e.target.value);
         artisticStyleSelect.addEventListener('change', e => product.style = e.target.value);
@@ -170,6 +209,29 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // function renderQueue() {
+    //     if (scenarios.length > 0) galleryPlaceholder.style.display = 'none';
+    //     resultsGrid.innerHTML = '';
+    //     scenarios.forEach(s => {
+    //         const cardWrapper = document.createElement('div');
+    //         cardWrapper.className = 'col-xl-3 col-lg-4 col-md-6 col-sm-12 mb-4';
+    //         cardWrapper.id = s.id;
+    //
+    //         cardWrapper.innerHTML = `
+    //             <div class="card h-100">
+    //                 <div class="card-header d-flex justify-content-between align-items-center">
+    //                     <span>${s.shotType.split('-')[0].trim()} x${s.count}</span>
+    //                     <span id="badge-${s.id}" class="badge"></span>
+    //                 </div>
+    //                 <div class="card-body">
+    //                     <div id="grid-${s.id}" class="row g-2"></div>
+    //                 </div>
+    //             </div>
+    //         `;
+    //         resultsGrid.appendChild(cardWrapper);
+    //         updateScenarioStatus(s.id, s.status, s.results);
+    //     });
+    // }
     function renderQueue() {
         if (scenarios.length > 0) galleryPlaceholder.style.display = 'none';
         resultsGrid.innerHTML = '';
@@ -177,23 +239,22 @@ document.addEventListener('DOMContentLoaded', () => {
             const cardWrapper = document.createElement('div');
             cardWrapper.className = 'col-xl-3 col-lg-4 col-md-6 col-sm-12 mb-4';
             cardWrapper.id = s.id;
-            
+
             cardWrapper.innerHTML = `
-                <div class="card h-100">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <span>${s.shotType.split('-')[0].trim()} x${s.count}</span>
-                        <span id="badge-${s.id}" class="badge"></span>
-                    </div>
-                    <div class="card-body">
-                        <div id="grid-${s.id}" class="row g-2"></div>
-                    </div>
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span class="text-truncate me-2" style="flex: 1;" title="${s.shotType}">${s.shotType} x${s.count}</span>
+                    <span id="badge-${s.id}" class="badge flex-shrink-0"></span>
                 </div>
-            `;
+                <div class="card-body">
+                    <div id="grid-${s.id}" class="row g-2"></div>
+                </div>
+            </div>
+        `;
             resultsGrid.appendChild(cardWrapper);
             updateScenarioStatus(s.id, s.status, s.results);
         });
     }
-
     function updateScenarioStatus(id, status, images = []) {
         const card = document.getElementById(id);
         if (!card) return;
