@@ -102,11 +102,44 @@ function startAPIServer() {
         res.json({ success: true, /* ...stats data */ });
     });
 
-    // --- NEW ENDPOINT ---
+    apiApp.post('/api/generate-base-product', async (req, res) => {
+        try {
+            const { prompt } = req.body;
+            if (!prompt) return res.status(400).json({ success: false, error: 'Prompt is required.' });
+            
+            const imageBase64 = await imageService.generateBaseProduct(prompt);
+            trackUsage(true, false);
+            res.json({ success: true, data: { imageBase64 } });
+        } catch (error) {
+            trackUsage(false, true);
+            res.status(500).json({ success: false, error: error.message });
+        }
+    });
+
+    apiApp.post('/api/generate-scenario-variation', async (req, res) => {
+        try {
+            const { baseImage, scenarioPrompt } = req.body;
+            if (!baseImage || !scenarioPrompt) return res.status(400).json({ success: false, error: 'Base image and scenario prompt are required.' });
+
+            const imageBase64 = await imageService.generateScenarioVariation(baseImage, scenarioPrompt);
+            trackUsage(true, false);
+            res.json({ success: true, data: { imageBase64 } });
+        } catch (error) {
+            trackUsage(false, true);
+            res.status(500).json({ success: false, error: error.message });
+        }
+    });
+
+    // UPDATED Endpoint for the Photoshoot feature
     apiApp.post('/api/generate-product-by-command', async (req, res) => {
         try {
-            const { prompt, shotType, lightingStyle, sampleCount } = req.body;
-            const result = await imageService.generateProductByCommand({ prompt, shotType, lightingStyle, sampleCount });
+            const { masterImage, productDescription, shotType, lightingStyle, sampleCount } = req.body;
+            if (!masterImage || !productDescription || !shotType || !lightingStyle) {
+                return res.status(400).json({ success: false, error: 'Missing required fields for photoshoot.' });
+            }
+            
+            const result = await imageService.generateProductByCommand({ masterImage, productDescription, shotType, lightingStyle, sampleCount });
+            
             if (result.success) {
                 trackUsage(true, false, result.imagesBase64.length);
                 res.json({ success: true, data: { imagesBase64: result.imagesBase64 } });
@@ -119,26 +152,6 @@ function startAPIServer() {
             res.status(500).json({ success: false, error: error.message });
         }
     });
-
-    // --- EXISTING ENDPOINTS ---
-    apiApp.post('/api/generate-by-command', async (req, res) => {
-        try {
-            const { prompt, sampleCount } = req.body;
-            const result = await imageService.generateImage(prompt, sampleCount);
-            if (result.success) {
-                trackUsage(true, false, result.imagesBase64.length);
-                res.json({ success: true, data: { imagesBase64: result.imagesBase64 } });
-            } else {
-                trackUsage(false, true);
-                res.status(500).json({ success: false, error: result.error });
-            }
-        } catch (error) {
-            trackUsage(false, true);
-            res.status(500).json({ success: false, error: error.message });
-        }
-    });
-
-    // ... (rest of the endpoints remain the same)
 
     const PORT = process.env.API_PORT || 8000;
     apiServer = apiApp.listen(PORT, () => {

@@ -1,569 +1,99 @@
 // src/backend/services/image.service.js
-const { API_KEY, IMAGEN_API_URL, GEMINI_IMAGE_EDIT_API_URL, GEMINI_TEXT_API_URL, fetchWithRetry, cleanJsonResponse } = require('./common.service');
+const { API_KEY, IMAGEN_API_URL, GEMINI_IMAGE_EDIT_API_URL, fetchWithRetry } = require('./common.service');
 
-/**
- * STEP 1: Helper Function untuk "Prompt Expansion"
- * Menggunakan GEMINI_TEXT_API_URL (Flash) untuk mengubah input pendek jadi deskripsi detail.
- */
-async function expandPromptWithGemini(userInput) {
-    console.log(`[Prompt Expander] Expanding user input: "${userInput}"...`);
+async function generateBaseProduct(prompt, aspectRatio = '1:1') {
+    if (!API_KEY) throw new Error("API Key not found.");
 
-    const instruction = `
-        You are a professional Product Design Director. 
-        Your task is to convert a simple product name into a ONE specific, highly detailed visual description to ensure consistency in image generation.
-        
-        Rules:
-        1. Define specific materials (e.g., "matte leather", "brushed steel").
-        2. Define specific color palette (e.g., "obsidian black with neon green accents").
-        3. Define specific shape/features (e.g., "T-strap", "chunky heel", "open toe").
-        4. Do NOT describe the background or lighting (only the object).
-        5. Keep it under 40 words.
+    const enhancedPrompt = `(professional product photography:1.5), (e-commerce catalog shot:1.4), (8k, photorealistic, ultra-detailed), a single, clear shot of: ${prompt}. (plain white background:1.5)`;
+    const negative_prompt = "text, words, watermark, logo, people, person, model, human, hands, feet, blurry, distorted, cartoon, sketch, multiple items, two products, collage, grid, noisy background, shadows, reflections";
 
-        Input: "${userInput}"
-        Output:
-    `;
-    try {
-        // PERBAIKAN UTAMA DISINI:
-        // Gunakan GEMINI_TEXT_API_URL, bukan IMAGEN_API_URL.
-        const response = await fetchWithRetry(GEMINI_TEXT_API_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: instruction }] }]
-            })
-        });
+    const payload = {
+        instances: [{ prompt: enhancedPrompt, negative_prompt }],
+        parameters: { sampleCount: 1, aspectRatio, outputMimeType: "image/png" }
+    };
 
-        const data = await response.json();
+    const result = await fetchWithRetry(IMAGEN_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
 
-        // Parsing response Gemini Text
-        if (data.candidates && data.candidates[0].content) {
-            const detailedPrompt = data.candidates[0].content.parts[0].text.trim();
-            console.log(`[Prompt Expander] Result: "${detailedPrompt}"`);
-            return detailedPrompt;
-        } else {
-            console.warn("[Prompt Expander] Warning: No text returned. Using original input.");
-            return userInput;
-        }
-    } catch (error) {
-        console.warn("[Prompt Expander] Failed (Network/API Error). Using original input.", error.message);
-        return userInput;
+    if (result.predictions && result.predictions[0]) {
+        return result.predictions[0].bytesBase64Encoded;
     }
+    throw new Error("API response did not contain image predictions for base product.");
 }
 
 /**
- * STEP 2: Main Generator Function
+ * REWRITTEN: Professional Photoshoot Generator
+ * Takes a master image and re-shoots it from different angles, ensuring product consistency.
  */
-async function generateProductByCommand({ prompt, shotType, lightingStyle, sampleCount }) {
-    if (!API_KEY) {
-        return { success: false, error: "API Key tidak ditemukan." };
-    }
-
-    // 1. Jalankan Prompt Expansion (Text API)
-    // Ini akan menghasilkan deskripsi produk yang konsisten (warna, bahan, bentuk)
-    const detailedObjectDescription = await expandPromptWithGemini(prompt);
+async function generateProductByCommand({ masterImage, productDescription, shotType, lightingStyle, sampleCount }) {
+    if (!API_KEY) return { success: false, error: "API Key tidak ditemukan." };
+    if (!masterImage) return { success: false, error: "Master image is required." };
 
     const totalImages = Math.max(1, Math.min(parseInt(sampleCount, 10) || 1, 8));
-    const MAX_PER_REQUEST = 4;
-
-    // 2. Construct Prompt untuk Imagen
-    const finalPrompt = `
-        professional studio product photography of ${detailedObjectDescription}.
-        SHOT TYPE: ${shotType}, isolated product, centered composition.
-        LIGHTING: ${lightingStyle}, soft studio lighting, 8k resolution, sharp focus.
-        BACKGROUND: Pure white background (Hex #FFFFFF), clean commercial look.
-        No humans, no models, product only.
-    `.trim().replace(/\s+/g, ' ');
-
-    const negative_prompt =
-        "human, people, man, woman, model, hands, holding, feet, legs, " +
-        "outdoors, nature, trees, rocks, mountain, grass, dirt, sky, clouds, " +
-        "blurry, distorted, low quality, watermark, text, logo, signature, " +
-        "shadows on wall, complex background, colored background, grey background, dark background";
-
     const apiCalls = [];
-    let remainingImages = totalImages;
 
-    while (remainingImages > 0) {
-        const currentBatchSize = Math.min(remainingImages, MAX_PER_REQUEST);
+    const systemPrompt = `
+You are a professional product photographer conducting a photoshoot.
+Your task is to take the provided MASTER IMAGE of a product and re-shoot it precisely according to the following brief.
+**DO NOT CHANGE, ALTER, OR REPLACE THE PRODUCT.** The product in your final image must be identical to the one in the master image.
+The result must be photorealistic, 8k, with professional lighting and composition.
+`.trim();
 
-        // Payload untuk IMAGEN (Image API)
+    for (let i = 0; i < totalImages; i++) {
+        const userPrompt = `
+**Photoshoot Brief:**
+- **Product:** ${productDescription}
+- **Required Angle:** ${shotType}
+- **Required Lighting:** ${lightingStyle}
+
+Generate a single, photorealistic image based on this brief. This is variation ${i + 1} of ${totalImages}, so introduce a very subtle change in camera position or product orientation to make it unique, while strictly adhering to the angle and lighting brief.
+`.trim();
+
         const payload = {
-            instances: [{ prompt: finalPrompt, negative_prompt }],
-            parameters: {
-                sampleCount: currentBatchSize,
-                aspectRatio: "1:1",
-                outputMimeType: "image/png"
-                // Seed dihapus karena Imagen 4.0 public API belum support
-            }
+            contents: [{
+                role: "user",
+                parts: [
+                    { text: userPrompt },
+                    { inlineData: { mimeType: "image/png", data: masterImage } }
+                ]
+            }],
+            systemInstruction: { parts: [{ text: systemPrompt }] },
+            generationConfig: { responseModalities: ["IMAGE"] }
         };
 
-        console.log(`[Product Generator] Generating batch of ${currentBatchSize} images...`);
-
-        // PERBAIKAN: Pastikan loop ini menggunakan IMAGEN_API_URL
-        apiCalls.push(fetchWithRetry(IMAGEN_API_URL, {
+        apiCalls.push(fetchWithRetry(GEMINI_IMAGE_EDIT_API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         }));
-
-        remainingImages -= currentBatchSize;
     }
 
     try {
+        console.log(`[Photoshoot] Starting ${apiCalls.length} parallel image generations.`);
         const results = await Promise.allSettled(apiCalls);
         const allImages = [];
-        let errors = [];
-
-        results.forEach(res => {
-            if (res.status === 'fulfilled') {
-                // Parsing response Imagen
-                if (res.value.predictions) {
-                    const predictions = res.value.predictions;
-                    const imagesFromBatch = predictions.map(pred => pred.bytesBase64Encoded);
-                    allImages.push(...imagesFromBatch);
-                } else if (res.value.error) {
-                    errors.push(`API Error: ${JSON.stringify(res.value.error)}`);
-                } else {
-                    errors.push("Unknown response structure.");
-                }
-            } else {
-                errors.push(res.reason?.message || "Network error");
-            }
-        });
-
-        if (allImages.length === 0) {
-            throw new Error(`All batches failed. Details: ${errors.join(" | ")}`);
-        }
-
-        console.log(`[Product Generator] Success! Generated ${allImages.length} images.`);
-
-        return {
-            success: true,
-            imagesBase64: allImages,
-            usedPrompt: detailedObjectDescription // Berguna untuk debugging
-        };
-
-    } catch (error) {
-        console.error('AI Product Generation Error:', error);
-        return { success: false, error: error.message };
-    }
-}
-async function generateImage(prompt, sampleCount = 1, isProductOnly = true, isConsistent = true) {
-    if (!API_KEY) {
-        return { success: false, error: "API Key tidak ditemukan. Pastikan GEMINI_API_KEY diatur di .env" };
-    }
-
-    const safeSampleCount = Math.max(1, Math.min(parseInt(sampleCount, 10) || 1, 4));
-
-    let enhancedPrompt = "";
-    let negative_prompt = "";
-
-    if (isProductOnly) {
-        enhancedPrompt = `(product photography:1.4), (e-commerce catalog shot:1.3), (white background:1.2), (no people:1.5), (no model:1.5), (a single item:1.3), ${prompt}`;
-        negative_prompt = "text, words, watermark, logo, people, person, model, human, (multiple items:1.3), two items, collage, grid, multiple products";
-
-        if (isConsistent) {
-            enhancedPrompt += ", (all images must show the exact same product design, same model of product)";
-        } else {
-            enhancedPrompt += ", (show different designs and variations of the product, different styles)";
-            negative_prompt = "text, words, watermark, logo, people, person, model, human, collage, grid";
-        }
-    } else {
-        enhancedPrompt = `Fashion photography, ultra detailed, cinematic light, high-end model, (a single subject:1.3), ${prompt}`;
-        negative_prompt = "text, words, watermark, logo, blurry, distorted, bad anatomy, (multiple subjects:1.3), collage, grid, two people";
-
-        if (isConsistent) {
-            enhancedPrompt += ", (the model must wear the exact same product design in all images)";
-        } else {
-            enhancedPrompt += ", (show the model wearing different designs or variations of the product)";
-        }
-    }
-
-    const parameters = {
-        sampleCount: safeSampleCount,
-        aspectRatio: "1:1",
-        outputMimeType: "image/png"
-    };
-
-    const payload = {
-        instances: {
-            prompt: enhancedPrompt,
-            negative_prompt: negative_prompt
-        },
-        parameters: parameters
-    };
-
-    try {
-        const result = await fetchWithRetry(IMAGEN_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        if (result.predictions && Array.isArray(result.predictions)) {
-            const imagesBase64 = result.predictions.map(pred => pred.bytesBase64Encoded);
-            return { success: true, imagesBase64: imagesBase64 };
-        } else {
-            throw new Error("Respon API sukses, tetapi tidak ada data gambar (predictions) yang ditemukan.");
-        }
-    } catch (error) {
-        console.error('AI Image Generation Error:', error);
-        return { success: false, error: error.message };
-    }
-}
-
-async function generateByReference(referenceBase64, prompt, sampleCount = 1) {
-    if (!API_KEY) {
-        return { success: false, error: "API Key tidak ditemukan." };
-    }
-    const safeSampleCount = Math.max(1, Math.min(parseInt(sampleCount, 10) || 1, 6));
-    const systemPrompt = `
-You are an AI image editor. Your job is to take a user's reference image and modify it based on their text prompt.
-You must follow the text prompt exactly.
---- RULES ---
-1. The output should be a new image that combines the reference image's subject with the text prompt's instructions.
-2. Do not just describe the image; you must output the final modified image.
-3. The output image must be photorealistic and high quality.
-4. Maintain the core elements of the reference image unless the prompt specifies otherwise.
-5. **OUTPUT**: The output MUST be a PNG with a transparent background.
-`.trim();
-    const payload = {
-        contents: [
-            {
-                role: "user",
-                parts: [
-                    { "text": prompt },
-                    { "inlineData": { "mimeType": "image/png", "data": referenceBase64 } }
-                ]
-            }
-        ],
-        systemInstruction: { parts: [{ "text": systemPrompt }] },
-        generationConfig: { responseModalities: ["IMAGE"] }
-    };
-    try {
-        const apiCalls = [];
-        for (let i = 0; i < safeSampleCount; i++) {
-            apiCalls.push(
-                fetchWithRetry(GEMINI_IMAGE_EDIT_API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                })
-            );
-        }
-        const results = await Promise.allSettled(apiCalls);
-        const imagesBase64 = [];
-        let lastError = null;
         results.forEach(res => {
             if (res.status === 'fulfilled' && res.value.candidates?.[0]) {
-                const candidate = res.value.candidates[0];
-                const imagePart = candidate?.content?.parts?.find(p => p.inlineData);
+                const imagePart = res.value.candidates[0].content?.parts?.find(p => p.inlineData);
                 if (imagePart?.inlineData?.data) {
-                    imagesBase64.push(imagePart.inlineData.data);
+                    allImages.push(imagePart.inlineData.data);
                 }
-            } else if (res.status === 'rejected') {
-                lastError = res.reason?.message || "Satu panggilan API generate-by-reference gagal.";
-                console.error("Satu panggilan generateByReference gagal:", lastError);
             }
         });
-        if (imagesBase64.length > 0) {
-            return { success: true, imagesBase64: imagesBase64 };
-        } else {
-            throw new Error(lastError || "Respon API sukses, tetapi tidak ada data gambar yang valid ditemukan.");
-        }
+
+        if (allImages.length === 0) throw new Error("All generation attempts failed.");
+        return { success: true, imagesBase64: allImages };
     } catch (error) {
-        console.error('AI Generate by Reference Error:', error);
-        return { success: false, error: error.message };
-    }
-}
-
-async function segmentProduct(productBase64, segmentPrompt) {
-    if (!API_KEY) {
-        return { success: false, error: "API Key tidak ditemukan." };
-    }
-    const systemPrompt = `
-You are an AI segmentation expert. Your ONLY task is to look at the provided image, identify the **main product** based on the user's text hint (e.g., sandal, bag, shirt), and return a new image of **ONLY** that product on a **transparent background**.
---- RULES ---
-1.  **USE THE HINT**: The user will provide a hint (e.g., "sandal"). Use this hint to identify the correct object.
-2.  **REMOVE BACKGROUND**: The entire original background MUST be removed and replaced with transparency.
-3.  **REMOVE NOISE**: You MUST remove all text, logos, watermarks, icons, or any other non-product elements.
-4.  **STRICT FOCUS**: Do not add, change, or "fix" the product. Output only the original product pixels.
-5.  **OUTPUT**: The output MUST be a PNG with a transparent background.
-`.trim();
-    const payload = {
-        contents: [
-            {
-                role: "user",
-                parts: [
-                    { "text": `Segment the main product from this image. The product is a "${segmentPrompt}". Remove all background, text, and logos. Return only the product on a transparent background.` },
-                    { "inlineData": { "mimeType": "image/png", "data": productBase64 } }
-                ]
-            }
-        ],
-        systemInstruction: { parts: [{ "text": systemPrompt }] },
-        generationConfig: { responseModalities: ["IMAGE"] }
-    };
-    try {
-        const result = await fetchWithRetry(GEMINI_IMAGE_EDIT_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        if (result.candidates && result.candidates[0]) {
-            const candidate = result.candidates[0];
-            const imagePart = candidate?.content?.parts?.find(p => p.inlineData);
-            if (imagePart?.inlineData?.data) {
-                return { success: true, imageBase64: imagePart.inlineData.data };
-            } else {
-                throw new Error("API (Segment) tidak mengembalikan data gambar.");
-            }
-        } else {
-            throw new Error("API (Segment) tidak mengembalikan 'candidates'.");
-        }
-    } catch (error) {
-        console.error('AI Segment Product Error:', error);
-        return { success: false, error: error.message };
-    }
-}
-
-async function generateModelFromProduct(cleanProductBase64, sampleCount, mode, prompt, modelReferenceBase64) {
-    if (!API_KEY) {
-        return { success: false, error: "API Key tidak ditemukan." };
-    }
-    const safeSampleCount = Math.max(1, Math.min(parseInt(sampleCount, 10) || 1, 6));
-    const systemPrompt = `
-You are an AI Fashion Visualizer. Your ONLY job is to generate a new, photorealistic image of a mannequin model **wearing** the user's provided product image, based on user instructions.
---- INPUTS ---
-1.  **PRODUCT IMAGE**: A clean PNG image of a product (e.g., sandal, shirt) on a transparent background.
-2.  **USER PROMPT**: A text description of the scene, OR a reference image of a model/pose.
---- NON-NEGOTIABLE CORE RULES ---
-1.  **GOAL**: You MUST generate a new scene based on the USER PROMPT.
-2.  **PRODUCT INTEGRATION**: You MUST feature the PRODUCT IMAGE on the model you generate. The product must be worn realistically (e.g., sandals on feet, shirt on torso).
-3.  **PHOTOREALISM**: The final image must be 8K, photorealistic, cinematic lighting, perfect anatomy.
-4.  **MODEL CONSISTENCY (Goal 3)**:
-    * If a **REFERENCE IMAGE** is provided: You MUST use the **exact pose, body type, and style** of the model in the reference image.
-    * If only **TEXT PROMPT** is provided: You MUST use a **consistent, featureless, faceless mannequin** across all images.
-5.  **FAILURE MODE**: If you do not use the provided PRODUCT IMAGE, you have failed. Do not invent a new product.
-`.trim();
-
-    const apiCalls = [];
-    const angleTitles = [];
-    for (let i = 0; i < safeSampleCount; i++) {
-        const shotType = SHOT_TYPES[i];
-        angleTitles.push(shotType.name);
-        let fullPrompt;
-        if (mode === 'reference') {
-            fullPrompt = `Gunakan model dan pose dari gambar referensi. Pakaikan produk ke model tersebut. Terapkan angle shot: "${shotType.desc}"`;
-        } else {
-            fullPrompt = `
---- USER PROMPT (Scene & Model) ---
-${prompt}
---- SHOT TYPE (Wajib Dipenuhi) ---
-${shotType.desc}
-`.trim();
-        }
-        const parts = [
-            { "text": fullPrompt },
-            { "text": "--- PRODUCT IMAGE (Item to wear) ---" },
-            { "inlineData": { "mimeType": "image/png", "data": cleanProductBase64 } }
-        ];
-        if (mode === 'reference' && modelReferenceBase64) {
-            parts.push({ "text": "--- MODEL REFERENCE IMAGE (Use this pose/style) ---" });
-            parts.push({ "inlineData": { "mimeType": "image/png", "data": modelReferenceBase64 } });
-        }
-        const payload = {
-            contents: [{ role: "user", parts }],
-            systemInstruction: { parts: [{ "text": systemPrompt }] },
-            generationConfig: { responseModalities: ["IMAGE"] }
-        };
-        apiCalls.push(
-            fetchWithRetry(GEMINI_IMAGE_EDIT_API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            })
-        );
-    }
-    try {
-        const results = await Promise.allSettled(apiCalls);
-        const imagesBase64 = [];
-        let lastError = null;
-        results.forEach(res => {
-            if (res.status === 'fulfilled' && res.value.candidates?.[0]) {
-                const candidate = res.value.candidates[0];
-                const imagePart = candidate?.content?.parts?.find(p => p.inlineData);
-                if (imagePart?.inlineData?.data) {
-                    imagesBase64.push(imagePart.inlineData.data);
-                }
-            } else if (res.status === 'rejected') {
-                lastError = res.reason?.message || "Satu panggilan API generate-from-product gagal.";
-                console.error("Satu panggilan generateModelFromProduct gagal:", lastError);
-            }
-        });
-        if (imagesBase64.length > 0) {
-            return { success: true, imagesBase64: imagesBase64, angleTitles: angleTitles };
-        } else {
-            throw new Error(lastError || "Respon API sukses, tetapi tidak ada data gambar yang valid ditemukan setelah semua percobaan.");
-        }
-    } catch (error) {
-        console.error('AI Generate Model from Product Error:', error);
-        return { success: false, error: error.message };
-    }
-}
-
-async function removeBackground(imageBase64, typePrompt) {
-    if (!API_KEY) {
-        return { success: false, error: "API Key tidak ditemukan." };
-    }
-
-    const systemPrompt = `
-You are an expert graphic designer specialized in background removal for LOGOS and WATERMARKS.
-Your task is to take the provided image (likely a logo with a white or solid background) and remove the background COMPLETELY, creating a TRANSPARENT PNG.
-
---- STRICT RULES ---
-1.  **TARGET**: Isolate the logo text, icon, or symbol "${typePrompt}".
-2.  **ALPHA CHANNEL**: You MUST return an image with an ALPHA CHANNEL. All background pixels must have alpha=0 (transparent).
-3.  **WHITE REMOVAL**: If the logo is on a white box, the white box must be GONE. Only the logo itself should remain.
-4.  **OUTPUT**: Return ONLY the raw PNG image data with transparency.
-`.trim();
-
-    const payload = {
-        contents: [
-            {
-                role: "user",
-                parts: [
-                    { "text": `Remove the white/solid background from this logo. Make it transparent PNG.` },
-                    { "inlineData": { "mimeType": "image/png", "data": imageBase64 } }
-                ]
-            }
-        ],
-        systemInstruction: { parts: [{ "text": systemPrompt }] },
-        generationConfig: {
-            responseModalities: ["IMAGE"],
-        }
-    };
-
-    try {
-        const result = await fetchWithRetry(GEMINI_IMAGE_EDIT_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        if (result.candidates && result.candidates[0]) {
-            const candidate = result.candidates[0];
-            const imagePart = candidate?.content?.parts?.find(p => p.inlineData);
-            if (imagePart?.inlineData?.data) {
-                return { success: true, imageBase64: imagePart.inlineData.data };
-            } else {
-                throw new Error("API tidak mengembalikan data gambar.");
-            }
-        } else {
-            throw new Error("API tidak mengembalikan 'candidates'.");
-        }
-    } catch (error) {
-        console.error('AI Remove Background Error:', error);
-        return { success: false, error: error.message };
-    }
-}
-
-async function generateStylistOutfit(productBase64, styleName, gender) {
-    if (!API_KEY) return { success: false, error: "API Key missing." };
-
-    const visionPrompt = `
-    Act as a professional Fashion Stylist.
-    1. Analyze this product image (color, material, style).
-    2. Create a complete outfit mix & match for a ${gender} with "${styleName}" style.
-    3. Generate an Image Prompt to visualize this outfit.
-    4. Provide styling advice in Indonesian on how to wear this outfit confidently.
-    5. Ensure the main product in the input image is worn by the model and looks exactly the same.
-    6. Advice menggunakan bahasa indonesia.
-    
-    IMPORTANT: Return ONLY a JSON object. No markdown, no extra text.
-    Format:
-    {
-        "imagePrompt": "A photorealistic full body shot...",
-        "advice": "Saran styling..."
-    }
-    `;
-
-    try {
-        const visionPayload = {
-            contents: [{
-                role: "user",
-                parts: [
-                    { text: visionPrompt },
-                    { inlineData: { mimeType: "image/png", data: productBase64 } }
-                ]
-            }],
-            generationConfig: { responseMimeType: "application/json" }
-        };
-
-        const visionRes = await fetchWithRetry(GEMINI_TEXT_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(visionPayload)
-        });
-
-        let rawText = visionRes.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!rawText) throw new Error("Gagal menganalisis produk (No Text).");
-
-        rawText = cleanJsonResponse(rawText);
-
-        let analysis;
-        try {
-            analysis = JSON.parse(rawText);
-        } catch (e) {
-            console.error("JSON Parse Error:", rawText);
-            throw new Error("Gagal membaca respon AI (Invalid JSON).");
-        }
-
-        const finalPrompt = analysis.imagePrompt;
-        const advice = analysis.advice;
-
-        const imagePayload = {
-            contents: [
-                {
-                    role: "user",
-                    parts: [
-                        { text: `Create this outfit: ${finalPrompt}. Ensure the main product in the input image is worn by the model and looks exactly the same.` },
-                        { inlineData: { mimeType: "image/png", data: productBase64 } }
-                    ]
-                }
-            ],
-            generationConfig: { responseModalities: ["IMAGE"] }
-        };
-
-        const imageRes = await fetchWithRetry(GEMINI_IMAGE_EDIT_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(imagePayload)
-        });
-
-        const imagePart = imageRes.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
-
-        if (imagePart?.inlineData?.data) {
-            return {
-                success: true,
-                imageBase64: imagePart.inlineData.data,
-                stylingAdvice: advice
-            };
-        } else {
-            throw new Error("Gagal men-generate gambar outfit.");
-        }
-
-    } catch (error) {
-        console.error("AI Stylist Error:", error);
+        console.error('AI Photoshoot Error:', error);
         return { success: false, error: error.message };
     }
 }
 
 
 module.exports = {
-    expandPromptWithGemini,
-    generateProductByCommand, // Export the new function
-    generateImage,
-    generateByReference,
-    segmentProduct,
-    generateModelFromProduct,
-    removeBackground,
-    generateStylistOutfit
+    generateBaseProduct,
+    generateProductByCommand,
 };

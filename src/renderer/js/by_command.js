@@ -1,68 +1,209 @@
 document.addEventListener('DOMContentLoaded', () => {
     loadNavbar('by_command');
 
-    const commandForm = document.getElementById('commandForm');
-    const generateButton = document.getElementById('generateButton');
-    const loading = document.getElementById('loading');
-    const resultContainer = document.getElementById('result');
-    const resultDisplay = document.getElementById('resultDisplay');
+    const STYLE_PRESETS = ["Photorealistic, 8k, studio lighting", "Cinematic, dramatic shadows, moody", "Minimalist, clean white background, soft shadows", "Cyberpunk, neon lighting, high contrast", "Vintage, film grain, warm tones"];
+    const DEFAULT_ANGLES = ["Front View - Eye Level, perfectly centered", "3/4 Angle - Isometric view", "Top-Down Flat Lay", "Low Angle Hero Shot", "Close-up Macro", "Side Profile"];
+
+    const artisticStyleSelect = document.getElementById('artisticStyle');
+    const angleSelect = document.getElementById('angleSelect');
+    const lightingStyleSelect = document.getElementById('lightingStyle');
+    const generateMasterBtn = document.getElementById('generateMasterBtn');
+    const uploadMasterInput = document.getElementById('uploadMasterInput');
+    const masterAssetPreview = document.getElementById('masterAssetPreview');
+    const masterAssetLoader = document.getElementById('masterAssetLoader');
+    const masterAssetPlaceholder = document.getElementById('masterAssetPlaceholder');
+    const addToQueueBtn = document.getElementById('addToQueueBtn');
+    const runPhotoshootBtn = document.getElementById('runPhotoshootBtn');
+    const resultsGrid = document.getElementById('resultsGrid');
+    const galleryPlaceholder = document.getElementById('galleryPlaceholder');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const loadingText = document.getElementById('loadingText');
     const errorMessage = document.getElementById('errorMessage');
 
-    commandForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
+    let product = { name: '', description: '', style: STYLE_PRESETS[0], baseImage: null };
+    let scenarios = [];
 
-        const shotType = document.getElementById('shotType').value;
-        const lightingStyle = document.getElementById('lightingStyle').value;
-        const sampleCount = parseInt(document.getElementById('sampleCount').value, 10);
-        const prompt = document.getElementById('prompt').value;
+    function init() {
+        STYLE_PRESETS.forEach(style => artisticStyleSelect.add(new Option(style, style)));
+        DEFAULT_ANGLES.forEach(angle => angleSelect.add(new Option(angle.split('-')[0].trim(), angle)));
 
-        // UI Reset
-        loading.style.display = 'block';
-        resultContainer.style.display = 'none';
-        errorMessage.style.display = 'none';
-        resultDisplay.innerHTML = '';
-        generateButton.disabled = true;
-        generateButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+        document.getElementById('productName').addEventListener('input', e => product.name = e.target.value);
+        document.getElementById('productDesc').addEventListener('input', e => product.description = e.target.value);
+        artisticStyleSelect.addEventListener('change', e => product.style = e.target.value);
+
+        generateMasterBtn.addEventListener('click', handleGenerateBase);
+        uploadMasterInput.addEventListener('change', handleImageUpload);
+        addToQueueBtn.addEventListener('click', addScenario);
+        runPhotoshootBtn.addEventListener('click', handleGenerateVariations);
+    }
+
+    const handleGenerateBase = async () => {
+        product.description = document.getElementById('productDesc').value;
+        if (!product.description) {
+            showError("Please provide a visual description first.");
+            return;
+        }
+
+        masterAssetLoader.classList.remove('d-none');
+        masterAssetPlaceholder.classList.add('d-none');
+        generateMasterBtn.disabled = true;
 
         try {
-            const response = await window.electron.invoke('/api/generate-product-by-command', {
-                prompt,
-                shotType,
-                lightingStyle,
-                sampleCount
-            });
+            const fullPrompt = `${product.name ? `Product: ${product.name}. ` : ''}${product.description}. Style: ${product.style}`;
+            const result = await window.electron.invoke('/api/generate-base-product', { prompt: fullPrompt });
 
-            if (response.success && response.data.imagesBase64 && response.data.imagesBase64.length > 0) {
-                response.data.imagesBase64.forEach((base64String, index) => {
-                    const dataUrl = `data:image/png;base64,${base64String}`;
-                    const item = document.createElement('div');
-                    item.className = 'thumbnail-item';
-
-                    const img = document.createElement('img');
-                    img.src = dataUrl;
-                    img.alt = `Generated Product ${index + 1}`;
-
-                    const downloadBtn = document.createElement('a');
-                    downloadBtn.href = dataUrl;
-                    downloadBtn.download = `product-ai-${Date.now()}-${index + 1}.png`;
-                    downloadBtn.className = 'download-btn';
-                    downloadBtn.innerHTML = '<i class="fas fa-download"></i> Save';
-
-                    item.appendChild(img);
-                    item.appendChild(downloadBtn);
-                    resultDisplay.appendChild(item);
-                });
-                resultContainer.style.display = 'block';
+            if (result.success) {
+                product.baseImage = result.data.imageBase64;
+                updateMasterAsset();
             } else {
-                throw new Error(response.error || 'No images were generated. Please try a different prompt.');
+                throw new Error(result.error || "Failed to generate base image.");
             }
         } catch (error) {
-            errorMessage.textContent = `Error: ${error.message}`;
-            errorMessage.style.display = 'block';
+            showError(error.message);
         } finally {
-            loading.style.display = 'none';
-            generateButton.disabled = false;
-            generateButton.innerHTML = '<i class="fas fa-magic"></i> Generate Product Images';
+            masterAssetLoader.classList.add('d-none');
+            generateMasterBtn.disabled = false;
         }
-    });
+    };
+
+    const handleImageUpload = (e) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                product.baseImage = (reader.result).replace(/^data:image\/[a-z]+;base64,/, "");
+                updateMasterAsset();
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const addScenario = () => {
+        if (!product.baseImage) {
+            showError("Please generate or upload a Master Asset first.");
+            return;
+        }
+        const count = parseInt(document.getElementById('sampleCount').value, 10);
+        const newScenario = {
+            id: `scenario-${Date.now()}`,
+            shotType: angleSelect.value,
+            lightingStyle: lightingStyleSelect.value,
+            count: count,
+            status: 'idle',
+            results: []
+        };
+        scenarios.push(newScenario);
+        renderQueue();
+    };
+
+    const handleGenerateVariations = async () => {
+        const scenariosToRun = scenarios.filter(s => s.status === 'idle');
+        if (!product.baseImage || scenariosToRun.length === 0) {
+            showError("Please add at least one new angle to the queue.");
+            return;
+        }
+
+        runPhotoshootBtn.disabled = true;
+
+        for (const scenario of scenariosToRun) {
+            updateScenarioStatus(scenario.id, 'loading');
+            try {
+                const result = await window.electron.invoke('/api/generate-product-by-command', {
+                    masterImage: product.baseImage,
+                    productDescription: product.description,
+                    shotType: scenario.shotType,
+                    lightingStyle: scenario.lightingStyle,
+                    sampleCount: scenario.count
+                });
+
+                if (result.success) {
+                    scenario.results = result.data.imagesBase64;
+                    updateScenarioStatus(scenario.id, 'success', scenario.results);
+                } else {
+                    throw new Error(result.error || 'Image generation failed.');
+                }
+            } catch (error) {
+                console.error(`Failed scenario: ${scenario.shotType}`, error);
+                updateScenarioStatus(scenario.id, 'error');
+            }
+        }
+        runPhotoshootBtn.disabled = false;
+    };
+
+    function updateMasterAsset() {
+        if (product.baseImage) {
+            masterAssetPreview.src = `data:image/png;base64,${product.baseImage}`;
+            masterAssetPreview.classList.remove('d-none');
+            masterAssetPlaceholder.classList.add('d-none');
+        } else {
+            masterAssetPreview.classList.add('d-none');
+            masterAssetPlaceholder.classList.remove('d-none');
+        }
+    }
+
+    function renderQueue() {
+        if (scenarios.length > 0) galleryPlaceholder.style.display = 'none';
+        resultsGrid.innerHTML = '';
+        scenarios.forEach(s => {
+            const cardWrapper = document.createElement('div');
+            cardWrapper.className = 'col-xl-3 col-lg-4 col-md-6 col-sm-12 mb-4';
+            cardWrapper.id = s.id;
+            
+            cardWrapper.innerHTML = `
+                <div class="card h-100">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span>${s.shotType.split('-')[0].trim()} x${s.count}</span>
+                        <span id="badge-${s.id}" class="badge"></span>
+                    </div>
+                    <div class="card-body">
+                        <div id="grid-${s.id}" class="row g-2"></div>
+                    </div>
+                </div>
+            `;
+            resultsGrid.appendChild(cardWrapper);
+            updateScenarioStatus(s.id, s.status, s.results);
+        });
+    }
+
+    function updateScenarioStatus(id, status, images = []) {
+        const card = document.getElementById(id);
+        if (!card) return;
+        const badge = card.querySelector(`#badge-${id}`);
+        const grid = card.querySelector(`#grid-${id}`);
+
+        badge.textContent = status.toUpperCase();
+        badge.className = `badge bg-${status === 'success' ? 'success' : status === 'loading' ? 'warning' : 'danger'}`;
+        
+        grid.innerHTML = ''; // Clear previous content
+
+        if (status === 'loading') {
+            grid.innerHTML = `<div class="col-12 d-flex justify-content-center align-items-center" style="min-height: 150px;"><div class="spinner-border text-primary" role="status"></div></div>`;
+        } else if (status === 'success') {
+            images.forEach((imgData, i) => {
+                const imgCol = document.createElement('div');
+                imgCol.className = 'col-6'; 
+                imgCol.innerHTML = `
+                    <div class="ratio ratio-1x1 image-container">
+                        <img src="data:image/png;base64,${imgData}" alt="Generated variation ${i+1}">
+                        <div class="download-overlay">
+                            <a href="data:image/png;base64,${imgData}" download="product_${id}_${i}.png" title="Download Image">
+                                <i class="fas fa-download"></i>
+                            </a>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(imgCol);
+            });
+        } else if (status === 'error') {
+            grid.innerHTML = `<div class="col-12 text-center text-danger p-4">Generation Failed</div>`;
+        }
+    }
+
+    function showError(message) {
+        errorMessage.textContent = message;
+        errorMessage.style.display = 'block';
+        setTimeout(() => errorMessage.style.display = 'none', 5000);
+    }
+
+    init();
 });
