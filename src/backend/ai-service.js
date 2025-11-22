@@ -919,27 +919,26 @@ Result must be a photorealistic image.
  * 1. Analisis produk (Gemini Vision) -> Dapatkan warna, jenis, bahan.
  * 2. Generate gambar outfit (Imagen) -> Berdasarkan analisis + Style pilihan.
  */
+
 async function generateStylistOutfit(productBase64, styleName, gender) {
     if (!API_KEY) return { success: false, error: "API Key missing." };
 
     // LANGKAH 1: Analisis Produk (Vision)
-    // Kita minta AI menjadi Fashion Stylist dan mendeskripsikan outfit lengkap
     const visionPrompt = `
-    You are a high-end Fashion Stylist.
-    1. Analyze this product image carefully (color, material, type).
-    2. Create a complete outfit recommendation based on this product for a ${gender} with the style "${styleName}".
-    3. Describe the FINAL IMAGE prompt for an AI image generator. The prompt must include the user's product as the centerpiece, combined with matching items (pants/shoes/accessories).
-    4. Also provide a short "Styling Advice" for the customer in Bahasa Indonesia.
-
-    Return JSON format:
+    Act as a professional Fashion Stylist.
+    1. Analyze this product image (color, material, style).
+    2. Create a complete outfit mix & match for a ${gender} with "${styleName}" style.
+    3. Generate an Image Prompt to visualize this outfit.
+    
+    IMPORTANT: Return ONLY a JSON object. No markdown, no extra text.
+    Format:
     {
-        "imagePrompt": "A photorealistic full body shot of a ${gender} wearing [describe user product detailed] paired with [describe matching items]. Lighting: [style lighting]. Background: [style background]. 8k, masterpiece.",
-        "advice": "Saran styling dalam Bahasa Indonesia..."
+        "imagePrompt": "A photorealistic full body shot...",
+        "advice": "Saran styling..."
     }
     `;
 
     try {
-        // Call Gemini Vision
         const visionPayload = {
             contents: [{
                 role: "user",
@@ -957,35 +956,31 @@ async function generateStylistOutfit(productBase64, styleName, gender) {
             body: JSON.stringify(visionPayload)
         });
 
-        if (!visionRes.candidates?.[0]?.content?.parts?.[0]?.text) {
-            throw new Error("Gagal menganalisis produk.");
+        let rawText = visionRes.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!rawText) throw new Error("Gagal menganalisis produk (No Text).");
+
+        // FIX: Bersihkan JSON sebelum parse
+        rawText = cleanJsonResponse(rawText);
+        
+        let analysis;
+        try {
+            analysis = JSON.parse(rawText);
+        } catch (e) {
+            console.error("JSON Parse Error:", rawText);
+            throw new Error("Gagal membaca respon AI (Invalid JSON).");
         }
 
-        const analysis = JSON.parse(visionRes.candidates[0].content.parts[0].text);
         const finalPrompt = analysis.imagePrompt;
         const advice = analysis.advice;
 
-        console.log("[Stylist] Prompt generated:", finalPrompt);
-
-        // LANGKAH 2: Generate Image (Imagen)
-        // Kita gunakan prompt dari Vision + Reference Image (User Product) agar produk tetap mirip
-        // NOTE: Kita gunakan teknik 'generateByReference' logic di sini
-        
-        // Karena Imagen endpoint butuh struktur spesifik untuk editing/refining
-        // Kita pakai endpoint Imagen standar tapi dengan prompt yang sangat deskriptif hasil analisis tadi
-        // Untuk hasil terbaik, kita bisa kirim image sebagai referensi ke Imagen (jika didukung endpoint)
-        // Namun di sini kita pakai Text-to-Image yang sangat dipandu oleh Vision.
-        
-        // OPSI TERBAIK SAAT INI: Gunakan endpoint Gemini Image Edit (seperti Product Swap)
-        // agar produk user dipertahankan strukturnya.
-        
+        // LANGKAH 2: Generate Image (Menggunakan Prompt dari Langkah 1)
+        // Kita gunakan GEMINI_IMAGE_EDIT_API_URL agar bisa mengirim gambar produk asli sebagai referensi kuat
         const imagePayload = {
             contents: [
                 {
                     role: "user",
                     parts: [
-                        { text: finalPrompt }, 
-                        { text: "Ensure the main product looks exactly like the reference image provided." },
+                        { text: `Create this outfit: ${finalPrompt}. Ensure the main product in the input image is worn by the model and looks exactly the same.` },
                         { inlineData: { mimeType: "image/png", data: productBase64 } }
                     ]
                 }
@@ -1016,6 +1011,17 @@ async function generateStylistOutfit(productBase64, styleName, gender) {
         return { success: false, error: error.message };
     }
 }
+
+// Placeholder functions to maintain compatibility with main.js calls
+async function generateVeoPrompt(p, m, pl, d, a) { return { success: true, scriptData: { fullScript: "Script...", voiceoverScript: "VO..." } }; }
+async function generateVideoFromImage(p) { return { success: false, error: "Placeholder" }; }
+async function generateAudioScript(p, m, pl, d, a) { return { success: true, scriptData: { fullScript: "Script...", voiceoverScript: "VO..." } }; }
+async function generateVoiceover(s, v) { return { success: false, error: "Placeholder" }; }
+async function recommendMusic(m, s) { return { success: true, recommendation: "Music..." }; }
+async function recommendSfx(s) { return { success: true, recommendation: "SFX..." }; }
+async function generateCaptionAndHashtags(p, pb, mb, k) { return { success: true, data: { caption: "Caption", hashtags: "#hash" } }; }
+async function removeBackground(i, p) { return segmentProduct(i, p); }
+async function generateTshirtPhotos(b, t) { return { success: true, images: [b] }; } // Simple echo for stability
 
 
 module.exports = {

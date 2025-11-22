@@ -434,7 +434,42 @@ function startAPIServer() {
         }
     });
 
-    // Join Video (Local FFmpeg)
+    // ==========================================
+    // FITUR BARU: AI FASHION STYLIST
+    // ==========================================
+
+    apiApp.post('/api/generate-stylist-outfit', async (req, res) => {
+        try {
+            console.log(">>> [API] Received: /api/generate-stylist-outfit");
+            const { productBase64, style, gender } = req.body;
+            if (!productBase64 || !style || !gender) {
+                console.error(">>> [API] Missing required fields");
+                return res.status(400).json({ success: false, error: 'Required fields missing: productBase64, style, gender' });
+            }
+
+            console.log(`>>> [API] Calling generateStylistOutfit with style="${style}", gender="${gender}"`);
+            const result = await aiService.generateStylistOutfit(productBase64, style, gender);
+
+            if (result.success) {
+                console.log(">>> [API] Success! Generated outfit");
+                trackUsage(true, false); // Image Generation
+                res.json({ success: true, data: { imageBase64: result.imageBase64, stylingAdvice: result.stylingAdvice } });
+            } else {
+                console.error(">>> [API] Service error:", result.error);
+                trackUsage(false, true);
+                res.status(500).json({ success: false, error: result.error });
+            }
+        } catch (error) {
+            console.error(">>> [API] Exception:", error.message);
+            trackUsage(false, true);
+            res.status(500).json({ success: false, error: error.message });
+        }
+    });
+
+    // ==========================================
+    // FITUR BARU: PRODUCTION - JOIN VIDEO
+    // ==========================================
+
     apiApp.post('/api/join-video', async (req, res) => {
         try {
             const { videos, voice, backsound, useBacksound, watermark } = req.body;
@@ -475,7 +510,7 @@ function startAPIServer() {
             res.status(500).json({ success: false, error: error.message });
         }
     });
-    
+
     // Tshirt Creator
     apiApp.post('/api/generate-tshirt-photos', async (req, res) => {
         try {
