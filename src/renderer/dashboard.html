@@ -9,6 +9,40 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/styles.css">
+    <style>
+        /* Custom Styles for API Stats */
+        .api-status-dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+        }
+        .status-online { background-color: #48bb78; box-shadow: 0 0 8px #48bb78; }
+        .status-offline { background-color: #f56565; }
+
+        .progress-bg {
+            width: 100%;
+            height: 8px;
+            background-color: #e2e8f0;
+            border-radius: 4px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background-color: #667eea;
+            border-radius: 4px;
+            width: 0%;
+            transition: width 1s ease-in-out;
+        }
+        .limit-text {
+            font-size: 0.75rem;
+            color: #718096;
+            margin-top: 5px;
+            display: flex;
+            justify-content: space-between;
+        }
+    </style>
 </head>
 <body>
 <div class="dashboard-layout">
@@ -17,41 +51,95 @@
     <main class="content">
         <div class="content-header">
             <h1><i class="fas fa-home"></i> Dashboard</h1>
-            <p>Welcome to Fashion AI Image Generator</p>
+            <p>Overview utilitas API Gemini dan statistik penggunaan.</p>
         </div>
 
+        <!-- API UTILITY SECTION -->
+        <h3 style="margin-bottom: 1rem; color: #2d3748;">Estimasi Gemini API Utility</h3>
         <div class="stats-grid">
+            <!-- Card 1: API Status & Plan -->
+            <div class="stat-card">
+                <div class="stat-icon" style="background: #48bb78;">
+                    <i class="fas fa-server"></i>
+                </div>
+                <div class="stat-info" style="width: 100%;">
+                    <h3>API Status</h3>
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <p class="stat-value" style="font-size: 1.4rem;">
+                            <span id="apiStatusDot" class="api-status-dot status-offline"></span>
+                            <span id="apiStatusText">Checking...</span>
+                        </p>
+                        <div style="text-align: right;">
+                            <span style="font-size: 0.8rem; color: #718096;">Plan</span>
+                            <p style="font-weight: bold; color: #2d3748;" id="planName">Loading...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 2: Billing & Usage (UPDATED) -->
             <div class="stat-card">
                 <div class="stat-icon" style="background: #667eea;">
+                    <i class="fas fa-file-invoice-dollar"></i>
+                </div>
+                <div class="stat-info" style="width: 100%;">
+                    <h3>Monthly Billing (Est.)</h3>
+                    <p class="stat-value">$<span id="billingUsed">0.00</span></p>
+                    <div class="limit-text">
+                        <span>Limit: $<span id="billingBudget">0.00</span></span>
+                        <span id="billingPercent">0%</span>
+                    </div>
+                    <div class="progress-bg">
+                        <div id="billingProgress" class="progress-fill" style="width: 0%;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 3: Rate Limit Info -->
+            <div class="stat-card">
+                <div class="stat-icon" style="background: #ed8936;">
+                    <i class="fas fa-tachometer-alt"></i>
+                </div>
+                <div class="stat-info" style="width: 100%;">
+                    <h3>Rate Limit (RPM)</h3>
+                    <p class="stat-value"><span id="rpmValue">15</span> <span style="font-size: 1rem; color: #718096;">RPM</span></p>
+                    <div class="limit-text">
+                        <span>Used Today: <span id="todayRequests">0</span></span>
+                        <span style="color: #48bb78;">Normal</span>
+                    </div>
+                    <p style="font-size: 0.8rem; color: #a0aec0; margin-top: 5px;">
+                        <i class="fas fa-info-circle"></i> Batas kecepatan request/menit.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- STATS OVERVIEW -->
+        <h3 style="margin-bottom: 1rem; margin-top: 2rem; color: #2d3748;">Generation Statistics</h3>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: #9f7aea;">
                     <i class="fas fa-images"></i>
                 </div>
                 <div class="stat-info">
-                    <h3>Total Images</h3>
-                    <p class="stat-value">0</p>
+                    <h3>Total Images Generated</h3>
+                    <p class="stat-value" id="totalImages">0</p>
                 </div>
             </div>
 
             <div class="stat-card">
-                <div class="stat-icon" style="background: #764ba2;">
-                    <i class="fas fa-clock"></i>
+                <div class="stat-icon" style="background: #f56565;">
+                    <i class="fas fa-bug"></i>
                 </div>
                 <div class="stat-info">
-                    <h3>Today's Generations</h3>
-                    <p class="stat-value">0</p>
-                </div>
-            </div>
-
-            <div class="stat-card">
-                <div class="stat-icon" style="background: #f093fb;">
-                    <i class="fas fa-check-circle"></i>
-                </div>
-                <div class="stat-info">
-                    <h3>Success Rate</h3>
-                    <p class="stat-value">100%</p>
+                    <h3>Total API Errors</h3>
+                    <p class="stat-value" id="totalErrors">0</p>
                 </div>
             </div>
         </div>
 
+        <!-- Quick Actions -->
+        <h3 style="margin-bottom: 1rem; margin-top: 2rem; color: #2d3748;">Quick Actions</h3>
         <div class="action-cards">
             <div class="action-card">
                 <div class="action-icon">
@@ -66,12 +154,12 @@
 
             <div class="action-card">
                 <div class="action-icon">
-                    <i class="fas fa-history"></i>
+                    <i class="fas fa-tshirt"></i>
                 </div>
-                <h3>View History</h3>
-                <p>Browse your previously generated images</p>
-                <a href="history.html" class="btn-action">
-                    View History <i class="fas fa-arrow-right"></i>
+                <h3>T-Shirt Creator</h3>
+                <p>Design custom mockups and photoshoots</p>
+                <a href="tshirt_generator.html" class="btn-action">
+                    Open Studio <i class="fas fa-arrow-right"></i>
                 </a>
             </div>
         </div>
@@ -81,6 +169,65 @@
 <script src="js/navbar.js"></script>
 <script>
     loadNavbar('dashboard');
+
+    // Fetch Dashboard Stats
+    async function fetchStats() {
+        try {
+            const response = await fetch(`${window.electronAPI?.backendServer || 'http://localhost:8000'}/api/dashboard-stats`);
+            const data = await response.json();
+
+            if (data.success) {
+                // 1. Update API Status & Plan
+                const statusDot = document.getElementById('apiStatusDot');
+                const statusText = document.getElementById('apiStatusText');
+                const planName = document.getElementById('planName');
+                
+                if (data.apiKeyConfigured) {
+                    statusDot.classList.remove('status-offline');
+                    statusDot.classList.add('status-online');
+                    statusText.textContent = "Online";
+                } else {
+                    statusText.textContent = "No API Key";
+                }
+
+                if (data.rateLimit && data.rateLimit.planName) {
+                    planName.textContent = data.rateLimit.planName;
+                    document.getElementById('rpmValue').textContent = data.rateLimit.rpm;
+                }
+
+                // 2. Update Billing Info (NEW)
+                if (data.billing) {
+                    const spend = parseFloat(data.billing.currentSpend);
+                    const budget = parseFloat(data.billing.budget);
+                    const percent = budget > 0 ? Math.min(100, (spend / budget) * 100) : 0;
+
+                    document.getElementById('billingUsed').textContent = spend.toFixed(2);
+                    document.getElementById('billingBudget').textContent = budget.toFixed(2);
+                    document.getElementById('billingPercent').textContent = percent.toFixed(1) + '%';
+                    document.getElementById('billingProgress').style.width = percent + '%';
+                    
+                    // Change color if near limit
+                    const fill = document.getElementById('billingProgress');
+                    if(percent > 90) fill.style.backgroundColor = '#f56565'; // red
+                    else if (percent > 75) fill.style.backgroundColor = '#ed8936'; // orange
+                    else fill.style.backgroundColor = '#667eea'; // normal
+                }
+
+                // 3. Update General Stats
+                document.getElementById('todayRequests').textContent = data.stats.todayRequests;
+                document.getElementById('totalImages').textContent = data.stats.totalImages;
+                document.getElementById('totalErrors').textContent = data.stats.totalErrors;
+            }
+        } catch (error) {
+            console.error("Failed to fetch stats", error);
+            document.getElementById('apiStatusText').textContent = "Server Error";
+        }
+    }
+
+    // Fetch on load
+    document.addEventListener('DOMContentLoaded', fetchStats);
+    // Refresh every 30 seconds
+    setInterval(fetchStats, 30000);
 </script>
 </body>
 </html>

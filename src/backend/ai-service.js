@@ -28,28 +28,65 @@ const SHOT_TYPES = [
 
 /**
  * Fungsi helper untuk retry dengan exponential backoff
+ * UPDATE PRODUCTION: Menambahkan handling khusus untuk 429 (Rate Limit) dan 503 (Service Unavailable)
  */
-async function fetchWithRetry(url, options, maxRetries = 3) {
+async function fetchWithRetry(url, options, maxRetries = 5) {
+    let lastError;
+    
     for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
             const response = await fetch(url, options);
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error(`API Error on attempt ${attempt + 1}: ${response.status} ${errorText}`);
-                throw new Error(`API Error (${response.status}): ${errorText}`);
+            
+            // Jika sukses, langsung return JSON
+            if (response.ok) {
+                return await response.json();
             }
-            return await response.json();
+
+            // Handle Errors
+            const errorText = await response.text();
+            const status = response.status;
+            
+            // Khusus untuk Rate Limit (429) atau Server Overload (503), kita harus retry lebih sabar
+            if (status === 429 || status === 503) {
+                console.warn(`API Busy (Status ${status}). Retrying... Attempt ${attempt + 1}/${maxRetries}`);
+                // Throw error to trigger catch block and retry logic
+                throw new Error(`Server Busy (${status}): ${errorText}`);
+            }
+
+            // Untuk error 4xx lainnya (misal 400 Bad Request), biasanya salah prompt/input, jangan retry percuma
+            if (status >= 400 && status < 500) {
+                console.error(`Client Error (${status}): ${errorText}`);
+                // Langsung stop, jangan retry
+                throw new Error(`API Error (${status}): ${errorText}`);
+            }
+
+            // Default: throw error
+            throw new Error(`API Error (${status}): ${errorText}`);
+
         } catch (error) {
-            if (attempt < maxRetries - 1) {
+            lastError = error;
+            
+            // Cek apakah error ini layak di-retry (Server Busy atau Network Error)
+            const isRetryable = error.message.includes('429') || 
+                                error.message.includes('503') || 
+                                error.message.includes('fetch failed') ||
+                                error.code === 'ETIMEDOUT';
+
+            if (attempt < maxRetries - 1 && isRetryable) {
+                // Exponential Backoff: 1s, 2s, 4s, 8s, 16s
                 const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
-                console.log(`Attempt ${attempt + 1} failed. Retrying in ${delay.toFixed(0)}ms...`);
+                console.log(`Waiting ${delay.toFixed(0)}ms before retry...`);
                 await new Promise(resolve => setTimeout(resolve, delay));
-            } else {
-                console.error('AI Generation Error (Final Attempt):', error);
+            } else if (!isRetryable) {
+                // Jika errornya fatal (misal API Key salah), langsung throw
                 throw error;
             }
         }
     }
+    
+    // Jika sudah habis retry
+    console.error('Max retries reached. Failing.');
+    throw lastError;
 }
 
 
