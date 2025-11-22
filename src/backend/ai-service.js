@@ -827,6 +827,13 @@ Your task is to take the provided image (likely a logo with a white or solid bac
     }
 }
 
+// --- HELPER FUNCTIONS ---
+function cleanJsonResponse(text) {
+    if (!text) return "{}";
+    // Hapus markdown formatting ```json ... ``` dan whitespace
+    return text.replace(/```json\n?|```/g, '').trim();
+}
+
 /**
  * TSHIRT CREATOR: Generate 6 Variasi Foto
  */

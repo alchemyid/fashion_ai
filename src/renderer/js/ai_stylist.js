@@ -34,54 +34,38 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. Handle File Upload
     if (productInput) {
         productInput.addEventListener('change', async (e) => {
-            console.log("File input changed");
             const file = e.target.files[0];
-            
             if (!file) return;
 
-            // Validasi tipe file sederhana
             if (!file.type.startsWith('image/')) {
                 showError("Harap upload file gambar (JPG/PNG).");
                 return;
             }
 
             try {
-                // Tampilkan loading sementara jika perlu (opsional, tapi image reader cepat)
-                
-                // Convert to Base64
                 const dataUrl = await fileToBase64(file);
-                console.log("File converted successfully");
-
-                // Update UI: Show Preview, Hide Placeholder
+                
+                // Update UI
                 productPreview.src = dataUrl;
-                productPreview.style.display = 'block'; // Pastikan ini 'block'
+                productPreview.style.display = 'block';
                 if (uploadPlaceholder) uploadPlaceholder.style.display = 'none';
 
-                // Simpan raw base64 (hapus prefix data:image/...)
+                // Simpan raw base64
                 productBase64 = dataUrl.split(',')[1];
 
                 // Aktifkan Tombol Generate
                 generateBtn.disabled = false;
-                generateBtn.classList.remove('opacity-50', 'cursor-not-allowed'); // Visual feedback if any
-                console.log("Generate button enabled");
-
+                
             } catch (err) {
                 console.error("Error reading file:", err);
-                showError('Gagal membaca file gambar. Silakan coba file lain.');
+                showError('Gagal membaca file gambar.');
             }
-            
-            // Reset value agar bisa re-upload file yang sama jika user salah klik lalu ingin ulang
-            // productInput.value = ''; 
         });
-    } else {
-        console.error("Element #productInput not found!");
     }
 
     // 2. Handle Generate Button
     if (generateBtn) {
         generateBtn.addEventListener('click', async () => {
-            console.log("Generate button clicked");
-
             if (!productBase64) {
                 showError("Silakan upload produk terlebih dahulu.");
                 return;
@@ -96,65 +80,56 @@ document.addEventListener('DOMContentLoaded', () => {
             loading.style.display = 'flex';
             errorMessage.style.display = 'none';
             generateBtn.disabled = true;
-            generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sedang Memproses...';
-
+            
             try {
-                console.log("Invoking API: generate-stylist-outfit");
-                console.log("Backend Server:", window.electronAPI?.backendServer || 'http://localhost:8000');
-                
-                // Panggil Backend menggunakan fetch dengan URL dinamis
-                const response = await fetch(`${window.electronAPI?.backendServer || 'http://localhost:8000'}/api/generate-stylist-outfit`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        productBase64,
-                        style,
-                        gender
-                    })
+                // Menggunakan window.electron.invoke agar konsisten dengan preload.js
+                const response = await window.electron.invoke('/api/generate-stylist-outfit', {
+                    productBase64,
+                    style,
+                    gender
                 });
 
-                console.log("Response Status:", response.status);
-                console.log("Response Content-Type:", response.headers.get('content-type'));
-
-                if (!response.ok) {
-                    const contentType = response.headers.get('content-type');
-                    if (contentType && contentType.includes('application/json')) {
-                        const data = await response.json();
-                        throw new Error(data.error || `HTTP Error: ${response.status}`);
-                    } else {
-                        throw new Error(`Server Error: HTTP ${response.status} - Endpoint mungkin tidak ditemukan atau belum ter-register`);
-                    }
-                }
-
-                const data = await response.json();
-                console.log("API Response:", data);
-
-                if (data.success) {
-                    renderResult(data.data);
+                if (response.success) {
+                    renderResult(response.data);
                 } else {
-                    throw new Error(data.error || "Gagal mendapatkan respon dari AI.");
+                    throw new Error(response.error || "Gagal mendapatkan respon dari AI.");
                 }
 
             } catch (error) {
-                showError(error.message);
+                console.error("Generation Error:", error);
+                showError(`Gagal memproses: ${error.message}`);
             } finally {
-                // Reset Loading State
                 loading.style.display = 'none';
                 generateBtn.disabled = false;
-                generateBtn.innerHTML = '<i class="fas fa-magic"></i> Generate Outfit Look';
             }
         });
-    } else {
-        console.error("Element #generateBtn not found!");
     }
 
     // Helper Render Result
     function renderResult(data) {
         const imageUrl = `data:image/png;base64,${data.imageBase64}`;
         
-        // Format saran styling (simple formatting)
-        let formattedAdvice = data.stylingAdvice || "Tidak ada saran khusus.";
-        formattedAdvice = formattedAdvice
+        // --- PERBAIKAN: Validasi Tipe Data Advice ---
+        let adviceContent = "Tidak ada saran khusus.";
+        
+        // Cek apakah data ada dan tipe datanya apa
+        if (data.stylingAdvice) {
+            if (typeof data.stylingAdvice === 'string') {
+                adviceContent = data.stylingAdvice;
+            } else if (Array.isArray(data.stylingAdvice)) {
+                // Jika AI mengembalikan array list, gabungkan jadi string
+                adviceContent = data.stylingAdvice.join('\n');
+            } else if (typeof data.stylingAdvice === 'object') {
+                // Jika object, coba ambil value pertama atau stringify
+                adviceContent = JSON.stringify(data.stylingAdvice); 
+            } else {
+                // Fallback paksa ke string (misal number)
+                adviceContent = String(data.stylingAdvice);
+            }
+        }
+
+        // Lakukan formatting (Bold & Newline) pada String yang sudah aman
+        const formattedAdvice = adviceContent
             .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
             .replace(/\n/g, '<br>');
 
