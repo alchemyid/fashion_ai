@@ -6,58 +6,454 @@
     <title>Product Genius - By Command</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css">
     <style>
-        /* --- CORE LAYOUT --- */
-        body { font-family: 'Inter', sans-serif; }
-        .main-grid { display: grid; grid-template-columns: 420px 1fr; gap: 0; min-height: 100vh; }
-        .sidebar-controls { background-color: #f8f9fa; border-right: 1px solid #dee2e6; overflow-y: auto; padding: 1.5rem; min-height: 100%; }
-        .gallery { overflow-y: auto; padding: 1.5rem; }
+        /* --- APPLE-STYLE DESIGN SYSTEM --- */
+        :root {
+            --apple-blue: #007AFF;
+            --apple-blue-hover: #0051D5;
+            --apple-gray: #F5F5F7;
+            --apple-dark: #1D1D1F;
+            --apple-text: #1D1D1F;
+            --apple-text-secondary: #86868B;
+            --apple-border: rgba(0, 0, 0, 0.08);
+            --apple-success: #34C759;
+            --apple-warning: #FF9500;
+            --apple-error: #FF3B30;
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+            --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
+            --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 20px;
+        }
 
-        /* --- IMAGE & CARD STYLING --- */
-        .card-header .badge { font-size: 0.7rem; padding: 0.4em 0.7em; }
+        /* --- CORE LAYOUT --- */
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #FAFAFA;
+            color: var(--apple-text);
+            font-weight: 400;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 440px 1fr;
+            gap: 0;
+            min-height: 100vh;
+            background: white;
+        }
+
+        /* --- SIDEBAR --- */
+        .sidebar-controls {
+            background: linear-gradient(180deg, #FFFFFF 0%, #F9FAFB 100%);
+            border-right: 1px solid var(--apple-border);
+            overflow-y: auto;
+            padding: 2rem 1.75rem;
+            min-height: 100%;
+            box-shadow: 2px 0 16px rgba(0, 0, 0, 0.02);
+        }
+
+        .sidebar-controls::-webkit-scrollbar { width: 8px; }
+        .sidebar-controls::-webkit-scrollbar-track { background: transparent; }
+        .sidebar-controls::-webkit-scrollbar-thumb {
+            background: var(--apple-text-secondary);
+            border-radius: 10px;
+            opacity: 0.3;
+        }
+
+        .sidebar-controls h2 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            color: var(--apple-dark);
+            margin-bottom: 2rem;
+        }
+
+        .sidebar-controls h3 {
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--apple-text-secondary);
+            margin-bottom: 1rem;
+            margin-top: 2rem;
+        }
+
+        /* --- FORM CONTROLS (APPLE STYLE) --- */
+        .form-label {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--apple-dark);
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.2px;
+        }
+
+        .form-control, .form-select {
+            border: 1px solid var(--apple-border);
+            border-radius: var(--radius-sm);
+            padding: 0.75rem 1rem;
+            font-size: 0.9375rem;
+            background: white;
+            transition: all 0.2s ease;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: var(--apple-blue);
+            box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.1);
+            outline: none;
+        }
+
+        textarea.form-control {
+            resize: none;
+            line-height: 1.5;
+        }
+
+        /* --- BUTTONS (APPLE STYLE) --- */
+        .btn {
+            border-radius: var(--radius-sm);
+            font-weight: 500;
+            font-size: 0.9375rem;
+            padding: 0.75rem 1.25rem;
+            border: none;
+            transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            letter-spacing: -0.2px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-primary {
+            background: var(--apple-blue);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: var(--apple-blue-hover);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-primary:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .btn-success {
+            background: var(--apple-success);
+            color: white;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: #28A745;
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-secondary {
+            background: var(--apple-gray);
+            color: var(--apple-dark);
+        }
+
+        .btn-secondary:hover {
+            background: #E8E8ED;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* --- MASTER ASSET CONTAINER --- */
+        #masterAssetContainer {
+            position: relative;
+            aspect-ratio: 1;
+            background: linear-gradient(135deg, #F9FAFB 0%, #FFFFFF 100%);
+            border: 2px dashed var(--apple-border);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        #masterAssetContainer:hover {
+            border-color: var(--apple-blue);
+            box-shadow: var(--shadow-md);
+        }
+
+        #masterAssetPreview {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            padding: 1rem;
+        }
+
+        #masterAssetPlaceholder {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            color: var(--apple-text-secondary);
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        #masterAssetLoader {
+            position: absolute;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* --- GALLERY --- */
+        .gallery {
+            overflow-y: auto;
+            padding: 2rem;
+            background: #FAFAFA;
+        }
+
+        .gallery::-webkit-scrollbar { width: 10px; }
+        .gallery::-webkit-scrollbar-track { background: transparent; }
+        .gallery::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+
+        .gallery h2 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            color: var(--apple-dark);
+            margin-bottom: 1.5rem;
+        }
+
+        #galleryPlaceholder {
+            color: var(--apple-text-secondary);
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        /* --- CARDS (APPLE STYLE) --- */
+        .card {
+            border: none;
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            background: white;
+            box-shadow: var(--shadow-md);
+            transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .card-header {
+            background: linear-gradient(180deg, #FFFFFF 0%, #F9FAFB 100%);
+            border-bottom: 1px solid var(--apple-border);
+            padding: 1rem 1.25rem;
+            font-weight: 600;
+            font-size: 0.9375rem;
+            color: var(--apple-dark);
+            letter-spacing: -0.2px;
+        }
+
+        .card-header .badge {
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.35rem 0.75rem;
+            border-radius: 20px;
+            letter-spacing: 0.3px;
+        }
+
+        .badge.bg-success {
+            background: var(--apple-success) !important;
+        }
+
+        .badge.bg-warning {
+            background: var(--apple-warning) !important;
+        }
+
+        .badge.bg-danger {
+            background: var(--apple-error) !important;
+        }
+
+        .card-body {
+            padding: 1.25rem;
+        }
+
+        /* --- IMAGE CONTAINER (IMPROVED) --- */
         .image-container {
             position: relative;
             overflow: hidden;
-            border-radius: 0.375rem; /* Bootstrap's rounded class */
-            background-color: #e9ecef;
+            border-radius: var(--radius-md);
+            background: var(--apple-gray);
+            box-shadow: var(--shadow-sm);
+            transition: all 0.3s ease;
         }
+
+        .image-container:hover {
+            box-shadow: var(--shadow-md);
+        }
+
         .image-container img {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            object-fit: cover; /* Ensures proportional fill */
+            object-fit: cover;
+            transition: transform 0.3s ease;
         }
+
+        .image-container:hover img {
+            transform: scale(1.05);
+        }
+
         .image-container .download-overlay {
             position: absolute;
             inset: 0;
-            background: rgba(0, 0, 0, 0.4);
+            background: linear-gradient(180deg, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.6) 100%);
             display: flex;
             align-items: center;
             justify-content: center;
-            opacity: 0; /* Hidden by default */
-            transition: opacity 0.2s ease-in-out;
-        }
-        .image-container:hover .download-overlay {
-            opacity: 1; /* Show on hover */
-        }
-        .image-container .download-overlay a {
-            color: white;
-            font-size: 1.75rem;
-            text-decoration: none;
-            padding: 1rem;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            backdrop-filter: blur(4px);
         }
 
-        /* --- UTILITIES --- */
-        #loadingOverlay { display: none; position: absolute; inset: 0; background: rgba(255, 255, 255, 0.95); z-index: 1050; align-items: center; justify-content: center; flex-direction: column; backdrop-filter: blur(4px); }
-        .error-message { display: none; position: fixed; bottom: 20px; right: 20px; z-index: 1060; width: 320px; background: #f8d7da; color: #842029; padding: 1rem; border-radius: 0.5rem; border-left: 4px solid #dc3545; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); }
-        .upload-label { cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
-        .upload-input { position: absolute; width: 0; height: 0; opacity: 0; }
+        .image-container:hover .download-overlay {
+            opacity: 1;
+        }
+
+        .image-container .download-overlay a {
+            color: white;
+            font-size: 1.5rem;
+            text-decoration: none;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 50%;
+            width: 56px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .image-container .download-overlay a:hover {
+            background: var(--apple-blue);
+            transform: scale(1.1);
+        }
+
+        /* --- LOADING OVERLAY --- */
+        #loadingOverlay {
+            display: none;
+            position: absolute;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.98);
+            z-index: 1050;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            backdrop-filter: blur(12px);
+        }
+
+        #loadingOverlay .bg-white {
+            background: white !important;
+            padding: 3rem !important;
+            border-radius: var(--radius-xl) !important;
+            box-shadow: var(--shadow-lg) !important;
+            border: 1px solid var(--apple-border);
+        }
+
+        #loadingOverlay h3 {
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        #loadingOverlay p {
+            font-size: 0.9375rem;
+            color: var(--apple-text-secondary);
+        }
+
+        /* --- ERROR MESSAGE --- */
+        .error-message {
+            display: none;
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 1060;
+            width: 360px;
+            background: white;
+            color: var(--apple-error);
+            padding: 1.25rem 1.5rem;
+            border-radius: var(--radius-lg);
+            border-left: 4px solid var(--apple-error);
+            box-shadow: var(--shadow-lg);
+            font-size: 0.9375rem;
+            font-weight: 500;
+            animation: slideInRight 0.3s ease;
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* --- UPLOAD BUTTON --- */
+        .upload-label {
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 48px;
+            height: 48px;
+            border-radius: var(--radius-sm);
+        }
+
+        .upload-input {
+            position: absolute;
+            width: 0;
+            height: 0;
+            opacity: 0;
+        }
+
+        /* --- SPINNER --- */
+        .spinner-border {
+            border-width: 3px;
+        }
+
+        /* --- RESPONSIVE --- */
+        @media (max-width: 1200px) {
+            .main-grid {
+                grid-template-columns: 380px 1fr;
+            }
+        }
+
+        @media (max-width: 992px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+            .sidebar-controls {
+                border-right: none;
+                border-bottom: 1px solid var(--apple-border);
+            }
+        }
     </style>
 </head>
 <body>
@@ -65,43 +461,91 @@
     <main class="content p-0" style="max-height: calc(100vh - 64px); position: relative;">
         <div class="main-grid">
             <aside class="sidebar-controls">
-                <h2 class="fw-bold fs-2 mb-4">Product Genius</h2>
-                <div class="mb-4">
-                    <h3 class="fw-bold fs-5 mb-3">1. Define Product</h3>
-                    <div class="mb-3"><label for="productName" class="form-label fw-bold">Product Name</label><input type="text" id="productName" class="form-control" placeholder="e.g., ChronoMax Watch"></div>
-                    <div class="mb-3"><label for="productDesc" class="form-label fw-bold">Visual Description</label><textarea id="productDesc" class="form-control" rows="4" placeholder="A matte black stainless steel analog watch..."></textarea></div>
-                    <div class="mb-3"><label for="artisticStyle" class="form-label fw-bold">Artistic Style</label><select id="artisticStyle" class="form-select"></select></div>
-                    <div class="d-flex gap-2 mt-3">
-                        <button id="generateMasterBtn" class="btn btn-primary flex-fill"><i class="fas fa-magic me-2"></i>Generate Master</button>
-                        <label class="btn btn-secondary upload-label" title="Upload existing image"><i class="fas fa-upload"></i><input type="file" id="uploadMasterInput" class="upload-input" accept="image/*"></label>
+                <h2>Product Genius</h2>
+
+                <h3>1. Define Product</h3>
+                <div class="mb-3">
+                    <label for="productName" class="form-label">Product Name</label>
+                    <input type="text" id="productName" class="form-control" placeholder="e.g., ChronoMax Watch">
+                </div>
+                <div class="mb-3">
+                    <label for="productDesc" class="form-label">Visual Description</label>
+                    <textarea id="productDesc" class="form-control" rows="4" placeholder="A matte black stainless steel analog watch..."></textarea>
+                </div>
+                <div class="mb-3">
+                    <label for="artisticStyle" class="form-label">Artistic Style</label>
+                    <select id="artisticStyle" class="form-select"></select>
+                </div>
+                <div class="d-flex gap-2 mt-3">
+                    <button id="generateMasterBtn" class="btn btn-primary flex-fill">
+                        <i class="fas fa-magic me-2"></i>Generate Master
+                    </button>
+                    <label class="btn btn-secondary upload-label" title="Upload existing image">
+                        <i class="fas fa-upload"></i>
+                        <input type="file" id="uploadMasterInput" class="upload-input" accept="image/*">
+                    </label>
+                </div>
+
+                <h3>2. Master Asset</h3>
+                <div id="masterAssetContainer">
+                    <p id="masterAssetPlaceholder">Generate or upload an asset to begin.</p>
+                    <img id="masterAssetPreview" class="d-none">
+                    <div id="masterAssetLoader" class="d-none">
+                        <i class="fas fa-spinner fa-spin fa-2x text-primary"></i>
                     </div>
                 </div>
-                <div class="mb-4">
-                    <h3 class="fw-bold fs-5 mb-3">2. Master Asset</h3>
-                    <div id="masterAssetContainer" class="ratio ratio-1x1"><p id="masterAssetPlaceholder" class="text-muted text-center p-4">Generate or upload an asset to begin.</p><img id="masterAssetPreview" class="d-none"><div id="masterAssetLoader" class="d-none"><i class="fas fa-spinner fa-spin fa-2x text-primary"></i></div></div>
-                </div>
-                <div class="mb-4">
-                    <h3 class="fw-bold fs-5 mb-3">3. Photoshoot Setup</h3>
-                    <div class="row g-3">
-                        <div class="col-6"><label for="angleSelect" class="form-label fw-bold">Camera Angle</label><select id="angleSelect" class="form-select"></select></div>
-                        <div class="col-6"><label for="lightingStyle" class="form-label fw-bold">Lighting</label><select id="lightingStyle" class="form-select"><option value="Soft Studio Light" selected>Soft Studio</option><option value="Hard Direct Light">Hard Direct</option><option value="Backlit / Rim Light">Backlit</option><option value="Natural Daylight">Daylight</option><option value="Cinematic Lighting">Cinematic</option></select></div>
-                        <div class="col-12"><label for="sampleCount" class="form-label fw-bold"># of Shots</label><input type="number" id="sampleCount" class="form-control" value="1" min="1" max="8"></div>
+
+                <h3>3. Photoshoot Setup</h3>
+                <div class="row g-3">
+                    <div class="col-6">
+                        <label for="angleSelect" class="form-label">Camera Angle</label>
+                        <select id="angleSelect" class="form-select"></select>
                     </div>
-                    <button id="addToQueueBtn" class="btn btn-success w-100 mt-3"><i class="fas fa-plus me-2"></i>Add to Photoshoot Queue</button>
+                    <div class="col-6">
+                        <label for="lightingStyle" class="form-label">Lighting</label>
+                        <select id="lightingStyle" class="form-select">
+                            <option value="Soft Studio Light" selected>Soft Studio</option>
+                            <option value="Hard Direct Light">Hard Direct</option>
+                            <option value="Backlit / Rim Light">Backlit</option>
+                            <option value="Natural Daylight">Daylight</option>
+                            <option value="Cinematic Lighting">Cinematic</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label for="sampleCount" class="form-label"># of Shots</label>
+                        <input type="number" id="sampleCount" class="form-control" value="1" min="1" max="8">
+                    </div>
                 </div>
-                <button id="runPhotoshootBtn" class="btn btn-primary w-100 py-3 fs-5"><i class="fas fa-camera me-2"></i>Run Photoshoot</button>
+                <button id="addToQueueBtn" class="btn btn-success w-100 mt-3">
+                    <i class="fas fa-plus me-2"></i>Add to Photoshoot Queue
+                </button>
+
+                <button id="runPhotoshootBtn" class="btn btn-primary w-100 py-3 fs-5 mt-4">
+                    <i class="fas fa-camera me-2"></i>Run Photoshoot
+                </button>
             </aside>
+
             <main class="gallery">
-                <h2 class="fw-bold fs-2 mb-4">Photoshoot Queue & Results</h2>
+                <h2>Photoshoot Queue & Results</h2>
                 <div id="resultsGrid" class="row g-3">
-                    <p id="galleryPlaceholder" class="text-muted text-center py-5 col-12">Your generated product variations will appear here.</p>
+                    <p id="galleryPlaceholder" class="col-12 text-center py-5">
+                        Your generated product variations will appear here.
+                    </p>
                 </div>
             </main>
         </div>
-        <div id="loadingOverlay"><div class="bg-white p-4 rounded-3 shadow text-center" style="min-width: 300px;"><i class="fas fa-spinner fa-spin fa-3x text-primary mb-3"></i><h3 id="loadingText" class="fw-bold text-dark mb-2">Running Photoshoot...</h3><p class="text-muted mb-0">Generating high-resolution variations.</p></div></div>
+
+        <div id="loadingOverlay">
+            <div class="bg-white" style="min-width: 300px;">
+                <i class="fas fa-spinner fa-spin fa-3x text-primary mb-3"></i>
+                <h3 id="loadingText" class="mb-2">Running Photoshoot...</h3>
+                <p class="mb-0">Generating high-resolution variations.</p>
+            </div>
+        </div>
         <div id="errorMessage" class="error-message"></div>
     </main>
 </div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="js/navbar.js"></script>
 <script src="js/by_command.js"></script>

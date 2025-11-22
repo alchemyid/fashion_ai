@@ -1,7 +1,36 @@
 document.addEventListener('DOMContentLoaded', () => {
     loadNavbar('by_command');
 
-    const STYLE_PRESETS = ["Photorealistic, 8k, studio lighting", "Cinematic, dramatic shadows, moody", "Minimalist, clean white background, soft shadows", "Cyberpunk, neon lighting, high contrast", "Vintage, film grain, warm tones"];
+    const STYLE_PRESETS = [
+        // --- Basic & Standard ---
+        "Photorealistic, 8k, studio lighting",
+        "Cinematic, dramatic shadows, moody",
+        "Minimalist, clean white background, soft shadows",
+
+        // --- Commercial & Product ---
+        "Luxury Product, macro photography, intricate details, golden lighting",
+        "Commercial Advertisement, vibrant colors, sharp focus, high key",
+        "Tech Noir, sleek, futuristic, blue and orange grading",
+        "Food Photography, appetizing, soft bokeh, natural lighting",
+
+        // --- Portrait & Fashion ---
+        "Editorial Fashion, magazine style, softbox lighting, trendy",
+        "Professional Headshot, neutral background, 85mm lens, bokeh",
+        "Street Photography, candid, urban texture, natural light",
+        "Double Exposure, silhouette, nature overlay, artistic",
+
+        // --- Artistic & Atmospheric ---
+        "Cyberpunk, neon lighting, high contrast, wet streets",
+        "Vintage, film grain, warm tones, Kodak Portra 400 style",
+        "Ethereal, dreamy, soft focus, pastel colors, fantasy",
+        "Noir, black and white, high contrast, harsh shadows, mystery",
+        "Surrealism, dreamlike, distorted reality, vivid imagination",
+
+        // --- Digital & Render Styles ---
+        "3D Render, Octane render, isometric, smooth textures",
+        "Low Poly, geometric shapes, abstract, minimalist",
+        "Oil Painting, textured brushstrokes, classic art style"
+    ];
     const DEFAULT_ANGLES = ["Front View - Eye Level, perfectly centered", "3/4 Angle - Isometric view", "Top-Down Flat Lay", "Low Angle Hero Shot", "Close-up Macro", "Side Profile"];
 
     const artisticStyleSelect = document.getElementById('artisticStyle');

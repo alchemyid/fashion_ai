@@ -4,7 +4,7 @@ const { API_KEY, IMAGEN_API_URL, GEMINI_IMAGE_EDIT_API_URL, fetchWithRetry } = r
 async function generateBaseProduct(prompt, aspectRatio = '1:1') {
     if (!API_KEY) throw new Error("API Key not found.");
 
-    const enhancedPrompt = `(professional product photography:1.5), (e-commerce catalog shot:1.4), (8k, photorealistic, ultra-detailed), a single, clear shot of: ${prompt}. (plain white background:1.5)`;
+    const enhancedPrompt = `(professional product photography:1.5), (e-commerce catalog shot:1.4), (8k, photorealistic, ultra-detailed), a single, clear shot of: ${prompt}.`;
     const negative_prompt = "text, words, watermark, logo, people, person, model, human, hands, feet, blurry, distorted, cartoon, sketch, multiple items, two products, collage, grid, noisy background, shadows, reflections";
 
     const payload = {
